@@ -17,11 +17,11 @@ const config: ExpoConfig = {
   scheme: 'omnichatai',
   userInterfaceStyle: 'automatic',
   ios: {
-    icon: './assets/expo.icon',
+    bundleIdentifier: 'com.anonymous.omnichatai',
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#5560E0',
       foregroundImage: './assets/images/android-icon-foreground.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
@@ -41,12 +41,13 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    'expo-asset',
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#208AEF',
+        backgroundColor: '#5560E0',
         image: './assets/images/splash-icon.png',
-        imageWidth: 76,
+        imageWidth: 120,
       },
     ],
     [
