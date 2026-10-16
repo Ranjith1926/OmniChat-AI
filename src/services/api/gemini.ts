@@ -1,9 +1,10 @@
 import { fetch } from 'expo/fetch';
 
 import { ApiKeyMissingError, GEMINI_BASE_URL, GeminiRequestError } from './apiConfig';
-import { readImageAsBase64 } from '@/services/media/imageProcessing';
+import { PDF_MIME } from '@/services/documents/constants';
+import { readImageAsBase64 as readFileAsBase64 } from '@/services/media/imageProcessing';
 import { getApiKey } from '@/services/storage/secureConfig';
-import type { Message } from '@/types';
+import type { Attachment, Message } from '@/types';
 
 interface GeminiPart {
   text?: string;
@@ -20,17 +21,39 @@ interface GeminiRequestBody {
   systemInstruction?: { parts: GeminiPart[] };
 }
 
+async function documentToPart(attachment: Attachment): Promise<GeminiPart | null> {
+  try {
+    if (attachment.mimeType === PDF_MIME) {
+      const data = await readFileAsBase64(attachment.uri);
+      return { inline_data: { mime_type: PDF_MIME, data } };
+    }
+    if (attachment.extractedText) {
+      return { text: `--- ${attachment.name} ---\n${attachment.extractedText}\n---` };
+    }
+    return null;
+  } catch {
+    // The source file may have been removed from disk; skip it rather than fail the whole request.
+    return null;
+  }
+}
+
 async function messageToParts(message: Message): Promise<GeminiPart[]> {
   const parts: GeminiPart[] = [];
 
   const imageAttachments = message.attachments?.filter((attachment) => attachment.kind === 'image') ?? [];
   for (const attachment of imageAttachments) {
     try {
-      const data = await readImageAsBase64(attachment.uri);
+      const data = await readFileAsBase64(attachment.uri);
       parts.push({ inline_data: { mime_type: attachment.mimeType, data } });
     } catch {
       // The source file may have been removed from disk; skip it rather than fail the whole request.
     }
+  }
+
+  const documentAttachments = message.attachments?.filter((attachment) => attachment.kind === 'document') ?? [];
+  for (const attachment of documentAttachments) {
+    const part = await documentToPart(attachment);
+    if (part) parts.push(part);
   }
 
   if (message.content.trim()) {
@@ -45,8 +68,8 @@ async function buildGeminiRequest(messages: Message[]): Promise<GeminiRequestBod
   const contents: GeminiContent[] = [];
 
   for (const message of messages) {
-    const hasImages = message.attachments?.some((attachment) => attachment.kind === 'image');
-    if (!message.content.trim() && !hasImages) continue;
+    const hasAttachments = (message.attachments?.length ?? 0) > 0;
+    if (!message.content.trim() && !hasAttachments) continue;
 
     if (message.role === 'system') {
       systemTexts.push(message.content);

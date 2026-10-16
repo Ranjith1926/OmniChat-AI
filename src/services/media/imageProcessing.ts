@@ -1,7 +1,7 @@
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
-import { generateId } from '@/utils/id';
+import { copyToPermanentStorage, deleteStoredFile } from '@/services/storage/permanentFile';
 
 const MAX_DIMENSION = 1280;
 const JPEG_QUALITY = 0.8;
@@ -27,21 +27,12 @@ export async function processImage(sourceUri: string): Promise<ProcessedImage> {
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
 
-  const temp = new File(result.uri);
-  const permanent = new File(Paths.document, `${generateId()}.jpg`);
-  await temp.copy(permanent);
-
-  return { uri: permanent.uri, mimeType: 'image/jpeg', size: permanent.size ?? 0 };
+  const stored = await copyToPermanentStorage(result.uri, '.jpg');
+  return { uri: stored.uri, mimeType: 'image/jpeg', size: stored.size };
 }
 
 export async function readImageAsBase64(uri: string): Promise<string> {
   return new File(uri).base64();
 }
 
-export async function deleteImageFile(uri: string): Promise<void> {
-  try {
-    new File(uri).delete();
-  } catch {
-    // best-effort cleanup; nothing to do if it's already gone
-  }
-}
+export const deleteImageFile = deleteStoredFile;

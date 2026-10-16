@@ -1,4 +1,4 @@
-import { Camera, Image as ImageIcon } from 'lucide-react-native';
+import { Camera, FileText, Image as ImageIcon } from 'lucide-react-native';
 import { Modal, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,14 +10,16 @@ interface AttachmentMenuProps {
   onClose: () => void;
   onCamera: () => void;
   onPhotoLibrary: () => void;
+  onFiles: () => void;
 }
 
-export function AttachmentMenu({ visible, onClose, onCamera, onPhotoLibrary }: AttachmentMenuProps) {
+export function AttachmentMenu({ visible, onClose, onCamera, onPhotoLibrary, onFiles }: AttachmentMenuProps) {
   const theme = useAppTheme();
 
   const options = [
     { key: 'camera', label: 'Camera', icon: Camera, onPress: onCamera },
     { key: 'library', label: 'Photo Library', icon: ImageIcon, onPress: onPhotoLibrary },
+    { key: 'files', label: 'Files', icon: FileText, onPress: onFiles },
   ];
 
   return (

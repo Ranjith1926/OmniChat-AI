@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
-import { Check, Copy, Pencil, RotateCcw, Trash2, X } from 'lucide-react-native';
+import { Check, Copy, FileText, Pencil, RotateCcw, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 
@@ -23,6 +23,7 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
   const [draft, setDraft] = useState(message.content);
   const [copied, setCopied] = useState(false);
   const images = message.attachments?.filter((attachment) => attachment.kind === 'image') ?? [];
+  const documents = message.attachments?.filter((attachment) => attachment.kind === 'document') ?? [];
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(message.content);
@@ -89,6 +90,34 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
                 style={{ width: 140, height: 140, borderRadius: theme.radius.md }}
                 contentFit="cover"
               />
+            ))}
+          </View>
+        ) : null}
+        {documents.length > 0 ? (
+          <View style={{ gap: theme.spacing.xs, marginBottom: message.content ? theme.spacing.sm : 0 }}>
+            {documents.map((doc) => (
+              <View
+                key={doc.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                  backgroundColor: isUser ? 'rgba(255,255,255,0.15)' : theme.colors.surface,
+                  borderRadius: theme.radius.sm,
+                  paddingHorizontal: theme.spacing.sm,
+                  paddingVertical: theme.spacing.xs,
+                }}
+              >
+                <FileText size={16} color={isUser ? theme.colors.bubbleUserText : theme.colors.primary} />
+                <Text
+                  variant="caption"
+                  color={isUser ? theme.colors.bubbleUserText : undefined}
+                  numberOfLines={1}
+                  style={{ flexShrink: 1 }}
+                >
+                  {doc.name}
+                </Text>
+              </View>
             ))}
           </View>
         ) : null}

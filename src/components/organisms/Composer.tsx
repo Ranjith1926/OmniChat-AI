@@ -19,7 +19,7 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
   const theme = useAppTheme();
   const [value, setValue] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
-  const { pending, pickFromLibrary, openCamera, removeAttachment } = useAttachments();
+  const { pending, pickFromLibrary, pickDocuments, openCamera, removeAttachment } = useAttachments();
 
   const hasReadyAttachment = pending.some((attachment) => attachment.status === 'ready');
   const hasBusyAttachment = pending.some((attachment) => attachment.status === 'processing');
@@ -102,6 +102,7 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
         onClose={() => setMenuVisible(false)}
         onCamera={openCamera}
         onPhotoLibrary={pickFromLibrary}
+        onFiles={pickDocuments}
       />
     </View>
   );

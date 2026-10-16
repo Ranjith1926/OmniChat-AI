@@ -68,6 +68,7 @@ const config: ExpoConfig = {
         microphonePermission: false,
       },
     ],
+    'expo-document-picker',
   ],
   experiments: {
     typedRoutes: true,
