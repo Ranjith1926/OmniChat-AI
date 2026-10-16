@@ -1,9 +1,8 @@
 import { ArrowUp, Square } from 'lucide-react-native';
 import { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { IconButton } from '@/components/atoms';
 
 interface ComposerProps {
   onSend: (content: string) => void;
@@ -22,52 +21,61 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
     setValue('');
   };
 
+  const canSend = !disabled && value.trim().length > 0;
+
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        gap: theme.spacing.sm,
-        padding: theme.spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: theme.colors.border,
-        backgroundColor: theme.colors.background,
-      }}
-    >
-      <TextInput
-        value={value}
-        onChangeText={setValue}
-        placeholder="Message OmniChat AI"
-        placeholderTextColor={theme.colors.textTertiary}
-        multiline
-        editable={!disabled}
-        accessibilityLabel="Message input"
+    <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md, paddingTop: theme.spacing.xs }}>
+      <View
         style={{
-          flex: 1,
-          maxHeight: 120,
-          minHeight: 40,
-          paddingHorizontal: theme.spacing.md,
-          paddingVertical: theme.spacing.sm,
-          borderRadius: theme.radius.lg,
+          flexDirection: 'row',
+          alignItems: 'flex-end',
           backgroundColor: theme.colors.surface,
-          color: theme.colors.text,
-          fontSize: theme.fontSize.md,
+          borderRadius: theme.radius.xl,
+          paddingLeft: theme.spacing.lg,
+          paddingRight: theme.spacing.xs,
+          paddingVertical: theme.spacing.xs,
         }}
-      />
-      {isStreaming ? (
-        <IconButton accessibilityLabel="Stop generating" variant="surface" onPress={onStop}>
-          <Square size={18} color={theme.colors.text} fill={theme.colors.text} />
-        </IconButton>
-      ) : (
-        <IconButton
-          accessibilityLabel="Send message"
-          variant="surface"
-          disabled={disabled || !value.trim()}
-          onPress={handleSend}
+      >
+        <TextInput
+          value={value}
+          onChangeText={setValue}
+          placeholder="Message OmniChat AI"
+          placeholderTextColor={theme.colors.textTertiary}
+          multiline
+          editable={!disabled}
+          accessibilityLabel="Message input"
+          style={{
+            flex: 1,
+            maxHeight: 120,
+            minHeight: 44,
+            paddingVertical: theme.spacing.sm,
+            color: theme.colors.text,
+            fontSize: theme.fontSize.md,
+          }}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isStreaming ? 'Stop generating' : 'Send message'}
+          disabled={isStreaming ? false : !canSend}
+          onPress={isStreaming ? onStop : handleSend}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: theme.radius.full,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 4,
+            backgroundColor: isStreaming || canSend ? theme.colors.primary : theme.colors.border,
+            opacity: pressed ? 0.85 : 1,
+          })}
         >
-          <ArrowUp size={20} color={value.trim() ? theme.colors.primary : theme.colors.textTertiary} />
-        </IconButton>
-      )}
+          {isStreaming ? (
+            <Square size={14} color={theme.colors.onPrimary} fill={theme.colors.onPrimary} />
+          ) : (
+            <ArrowUp size={18} color={canSend ? theme.colors.onPrimary : theme.colors.textTertiary} />
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }

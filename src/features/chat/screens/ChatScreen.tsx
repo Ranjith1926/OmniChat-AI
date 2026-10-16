@@ -1,24 +1,25 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Sparkles } from 'lucide-react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import type { DrawerNavigationProp } from 'expo-router/drawer';
+import { Menu, SquarePen, Sparkles } from 'lucide-react-native';
 import { useRef } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { IconButton, Text } from '@/components/atoms';
+import { IconButton } from '@/components/atoms';
 import { EmptyState, ErrorState } from '@/components/molecules';
 import { Composer, MessageBubble } from '@/components/organisms';
 import { Screen } from '@/components/templates/Screen';
-import { useAppState } from '@/context';
 import { useChat } from '@/features/chat/hooks/useChat';
 import type { Message } from '@/types';
+import { generateId } from '@/utils/id';
 
 export function ChatScreen() {
   const theme = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const conversationId = id ?? 'new';
+  const navigation = useNavigation<DrawerNavigationProp<Record<string, object | undefined>>>();
   const { messages, isStreaming, error, sendMessage, stopGeneration, regenerateMessage, editMessage, deleteMessage, retryLastError } =
     useChat(conversationId);
-  const conversation = useAppState().conversations.items.find((item) => item.id === conversationId);
   const listRef = useRef<FlatList<Message>>(null);
 
   return (
@@ -28,18 +29,17 @@ export function ChatScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
+            justifyContent: 'space-between',
             paddingHorizontal: theme.spacing.sm,
             paddingVertical: theme.spacing.sm,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
           }}
         >
-          <IconButton accessibilityLabel="Back" onPress={() => router.back()}>
-            <ChevronLeft size={22} color={theme.colors.text} />
+          <IconButton accessibilityLabel="Open menu" onPress={() => navigation.openDrawer()}>
+            <Menu size={22} color={theme.colors.text} />
           </IconButton>
-          <Text variant="subtitle" numberOfLines={1} style={{ marginLeft: theme.spacing.xs, flexShrink: 1 }}>
-            {conversation?.title ?? 'New chat'}
-          </Text>
+          <IconButton accessibilityLabel="New chat" onPress={() => router.push(`/chat/${generateId()}`)}>
+            <SquarePen size={20} color={theme.colors.text} />
+          </IconButton>
         </View>
 
         {messages.length === 0 ? (

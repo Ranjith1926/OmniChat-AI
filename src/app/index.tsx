@@ -1,5 +1,9 @@
-import { HistoryScreen } from '@/features/history/screens/HistoryScreen';
+import { Redirect } from 'expo-router';
+import { useState } from 'react';
+
+import { generateId } from '@/utils/id';
 
 export default function Index() {
-  return <HistoryScreen />;
+  const [newChatId] = useState(() => generateId());
+  return <Redirect href={`/chat/${newChatId}`} />;
 }
