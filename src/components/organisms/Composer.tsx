@@ -1,8 +1,12 @@
-import { ArrowUp, Square } from 'lucide-react-native';
+import { ArrowUp, Plus, Square } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
+import { IconButton } from '@/components/atoms';
+import { AttachmentThumbnail } from '@/components/molecules';
+import { AttachmentMenu } from './AttachmentMenu';
+import { useAttachments } from '@/features/attachments/hooks/useAttachments';
 
 interface ComposerProps {
   onSend: (content: string) => void;
@@ -14,28 +18,44 @@ interface ComposerProps {
 export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProps) {
   const theme = useAppTheme();
   const [value, setValue] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const { pending, pickFromLibrary, openCamera, removeAttachment } = useAttachments();
+
+  const hasReadyAttachment = pending.some((attachment) => attachment.status === 'ready');
+  const hasBusyAttachment = pending.some((attachment) => attachment.status === 'processing');
+  const canSend = !disabled && !hasBusyAttachment && (value.trim().length > 0 || hasReadyAttachment);
 
   const handleSend = () => {
-    if (!value.trim()) return;
+    if (!canSend) return;
     onSend(value);
     setValue('');
   };
 
-  const canSend = !disabled && value.trim().length > 0;
-
   return (
     <View style={{ paddingHorizontal: theme.spacing.md, paddingBottom: theme.spacing.md, paddingTop: theme.spacing.xs }}>
+      {pending.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: theme.spacing.sm }}>
+          {pending.map((attachment) => (
+            <AttachmentThumbnail key={attachment.id} attachment={attachment} onRemove={() => removeAttachment(attachment.id)} />
+          ))}
+        </ScrollView>
+      ) : null}
+
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'flex-end',
           backgroundColor: theme.colors.surface,
           borderRadius: theme.radius.xl,
-          paddingLeft: theme.spacing.lg,
+          paddingLeft: theme.spacing.xs,
           paddingRight: theme.spacing.xs,
           paddingVertical: theme.spacing.xs,
         }}
       >
+        <IconButton accessibilityLabel="Add attachment" onPress={() => setMenuVisible(true)} disabled={disabled}>
+          <Plus size={20} color={theme.colors.text} />
+        </IconButton>
+
         <TextInput
           value={value}
           onChangeText={setValue}
@@ -76,6 +96,13 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
           )}
         </Pressable>
       </View>
+
+      <AttachmentMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        onCamera={openCamera}
+        onPhotoLibrary={pickFromLibrary}
+      />
     </View>
   );
 }

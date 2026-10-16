@@ -31,6 +31,7 @@ function Navigation() {
         <Drawer.Screen name="index" />
         <Drawer.Screen name="chat/[id]" />
         <Drawer.Screen name="settings" />
+        <Drawer.Screen name="camera" options={{ swipeEnabled: false }} />
       </Drawer>
     </NavigationThemeProvider>
   );

@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { listAttachmentsForMessages } from './attachments';
 import type { Message } from '@/types';
 
 interface MessageRow {
@@ -29,7 +30,13 @@ export async function listMessages(db: SQLiteDatabase, conversationId: string): 
     'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC',
     conversationId
   );
-  return rows.map(fromRow);
+  const attachmentsByMessage = await listAttachmentsForMessages(db, rows.map((row) => row.id));
+
+  return rows.map((row) => {
+    const message = fromRow(row);
+    const attachments = attachmentsByMessage.get(row.id);
+    return attachments ? { ...message, attachments } : message;
+  });
 }
 
 export async function insertMessage(db: SQLiteDatabase, message: Message): Promise<void> {

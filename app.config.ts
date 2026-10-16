@@ -52,6 +52,22 @@ const config: ExpoConfig = {
     'expo-audio',
     'expo-sqlite',
     'expo-secure-store',
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow OmniChat AI to use your camera to capture photos for your conversations.',
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow OmniChat AI to access your photos so you can share images in conversations.',
+        cameraPermission: false,
+        microphonePermission: false,
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

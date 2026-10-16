@@ -1,8 +1,9 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { chatActions, conversationsActions, useAppDispatch, useAppState } from '@/context';
+import { attachmentsActions, chatActions, conversationsActions, useAppDispatch, useAppState } from '@/context';
 import { streamChatResponse } from '@/services/api/gemini';
+import { insertAttachments } from '@/services/db/attachments';
 import { deriveTitle, insertConversation, touchConversation } from '@/services/db/conversations';
 import { deleteMessage as deleteMessageDb, deleteMessagesAfter, insertMessage, listMessages, updateMessage as updateMessageDb } from '@/services/db/messages';
 import type { Conversation, Message } from '@/types';
@@ -17,9 +18,11 @@ const EMPTY_MESSAGES: Message[] = [];
 export function useChat(conversationId: string) {
   const db = useSQLiteContext();
   const dispatch = useAppDispatch();
-  const chatState = useAppState().chat;
-  const { model } = useAppState().settings;
-  const conversations = useAppState().conversations.items;
+  const appState = useAppState();
+  const chatState = appState.chat;
+  const { model } = appState.settings;
+  const conversations = appState.conversations.items;
+  const attachments = appState.attachments;
   const messages = chatState.messagesByConversation[conversationId] ?? EMPTY_MESSAGES;
   const isStreaming = chatState.streamingMessageId != null;
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -120,18 +123,26 @@ export function useChat(conversationId: string) {
   const sendMessage = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
-      if (!trimmed || isStreaming) return;
+      const readyAttachments = attachments.pending.filter((attachment) => attachment.status === 'ready');
+      if ((!trimmed && readyAttachments.length === 0) || isStreaming) return;
 
       if (messages.length === 0) {
-        await ensureConversationExists(trimmed);
+        await ensureConversationExists(trimmed || readyAttachments[0]?.name || '');
       }
 
-      const userMessage = createMessage(conversationId, 'user', trimmed, 'complete');
+      const userMessage: Message = {
+        ...createMessage(conversationId, 'user', trimmed, 'complete'),
+        attachments: readyAttachments.length > 0 ? readyAttachments : undefined,
+      };
       dispatch(chatActions.addMessage(conversationId, userMessage));
+      dispatch(attachmentsActions.clearAttachments());
       await insertMessage(db, userMessage);
+      if (readyAttachments.length > 0) {
+        await insertAttachments(db, userMessage.id, readyAttachments);
+      }
       runAssistantTurn([...messages, userMessage]);
     },
-    [conversationId, db, dispatch, ensureConversationExists, isStreaming, messages, runAssistantTurn]
+    [attachments.pending, conversationId, db, dispatch, ensureConversationExists, isStreaming, messages, runAssistantTurn]
   );
 
   const stopGeneration = useCallback(() => {

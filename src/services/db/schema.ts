@@ -33,6 +33,23 @@ const MIGRATIONS: ((db: SQLiteDatabase) => Promise<void>)[] = [
       );
     `);
   },
+  // v2: attachments (images for now; documents/audio join the same table in later phases)
+  async (db) => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS attachments (
+        id TEXT PRIMARY KEY NOT NULL,
+        message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        uri TEXT NOT NULL,
+        name TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        extracted_text TEXT,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
+    `);
+  },
 ];
 
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {

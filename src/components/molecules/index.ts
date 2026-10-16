@@ -1,3 +1,4 @@
+export * from './AttachmentThumbnail';
 export * from './CodeBlock';
 export * from './ConfirmationDialog';
 export * from './EmptyState';

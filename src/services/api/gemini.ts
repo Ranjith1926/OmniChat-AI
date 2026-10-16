@@ -1,11 +1,13 @@
 import { fetch } from 'expo/fetch';
 
 import { ApiKeyMissingError, GEMINI_BASE_URL, GeminiRequestError } from './apiConfig';
+import { readImageAsBase64 } from '@/services/media/imageProcessing';
 import { getApiKey } from '@/services/storage/secureConfig';
 import type { Message } from '@/types';
 
 interface GeminiPart {
   text?: string;
+  inline_data?: { mime_type: string; data: string };
 }
 
 interface GeminiContent {
@@ -18,20 +20,43 @@ interface GeminiRequestBody {
   systemInstruction?: { parts: GeminiPart[] };
 }
 
-function buildGeminiRequest(messages: Message[]): GeminiRequestBody {
+async function messageToParts(message: Message): Promise<GeminiPart[]> {
+  const parts: GeminiPart[] = [];
+
+  const imageAttachments = message.attachments?.filter((attachment) => attachment.kind === 'image') ?? [];
+  for (const attachment of imageAttachments) {
+    try {
+      const data = await readImageAsBase64(attachment.uri);
+      parts.push({ inline_data: { mime_type: attachment.mimeType, data } });
+    } catch {
+      // The source file may have been removed from disk; skip it rather than fail the whole request.
+    }
+  }
+
+  if (message.content.trim()) {
+    parts.push({ text: message.content });
+  }
+
+  return parts;
+}
+
+async function buildGeminiRequest(messages: Message[]): Promise<GeminiRequestBody> {
   const systemTexts: string[] = [];
   const contents: GeminiContent[] = [];
 
   for (const message of messages) {
-    if (!message.content.trim()) continue;
+    const hasImages = message.attachments?.some((attachment) => attachment.kind === 'image');
+    if (!message.content.trim() && !hasImages) continue;
+
     if (message.role === 'system') {
       systemTexts.push(message.content);
       continue;
     }
-    contents.push({
-      role: message.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: message.content }],
-    });
+
+    const parts = await messageToParts(message);
+    if (parts.length === 0) continue;
+
+    contents.push({ role: message.role === 'assistant' ? 'model' : 'user', parts });
   }
 
   return {
@@ -108,7 +133,7 @@ export async function streamChatResponse({
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
-      body: JSON.stringify(buildGeminiRequest(messages)),
+      body: JSON.stringify(await buildGeminiRequest(messages)),
       signal,
     });
   } catch (err) {

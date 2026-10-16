@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { Image } from 'expo-image';
 import { Check, Copy, Pencil, RotateCcw, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
@@ -21,6 +22,7 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
   const [copied, setCopied] = useState(false);
+  const images = message.attachments?.filter((attachment) => attachment.kind === 'image') ?? [];
 
   const handleCopy = async () => {
     await Clipboard.setStringAsync(message.content);
@@ -78,8 +80,20 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
           backgroundColor: isUser ? theme.colors.bubbleUser : theme.colors.bubbleAssistant,
         }}
       >
+        {images.length > 0 ? (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs, marginBottom: message.content ? theme.spacing.sm : 0 }}>
+            {images.map((image) => (
+              <Image
+                key={image.id}
+                source={{ uri: image.uri }}
+                style={{ width: 140, height: 140, borderRadius: theme.radius.md }}
+                contentFit="cover"
+              />
+            ))}
+          </View>
+        ) : null}
         {isUser ? (
-          <Text style={{ color: theme.colors.bubbleUserText }}>{message.content}</Text>
+          message.content ? <Text style={{ color: theme.colors.bubbleUserText }}>{message.content}</Text> : null
         ) : message.status === 'streaming' && message.content.length === 0 ? (
           <Loader size="small" />
         ) : (
