@@ -7,6 +7,7 @@ import { TextInput, View } from 'react-native';
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { IconButton, Loader, Text } from '@/components/atoms';
 import { MarkdownRenderer } from '@/components/molecules';
+import { SpeakButton } from './SpeakButton';
 import type { Message } from '@/types';
 
 interface MessageBubbleProps {
@@ -151,6 +152,7 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
               <RotateCcw size={14} color={theme.colors.textTertiary} />
             </IconButton>
           ) : null}
+          {!isUser && message.content ? <SpeakButton text={message.content} /> : null}
           <IconButton accessibilityLabel="Delete message" size={28} onPress={onDelete}>
             <Trash2 size={14} color={theme.colors.textTertiary} />
           </IconButton>

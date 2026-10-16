@@ -4,11 +4,15 @@ import { ApiKeyMissingError, GEMINI_BASE_URL, GeminiRequestError } from './apiCo
 import { PDF_MIME } from '@/services/documents/constants';
 import { readImageAsBase64 as readFileAsBase64 } from '@/services/media/imageProcessing';
 import { getApiKey } from '@/services/storage/secureConfig';
+import { writeTtsAudioToPermanentStorage } from '@/services/storage/permanentFile';
 import type { Attachment, Message } from '@/types';
 
 interface GeminiPart {
   text?: string;
   inline_data?: { mime_type: string; data: string };
+  // Non-streaming responses use the camelCase schema form instead of the
+  // snake_case form our own requests send — handle both defensively.
+  inlineData?: { mimeType: string; data: string };
 }
 
 interface GeminiContent {
@@ -212,4 +216,87 @@ export async function streamChatResponse({
     if (err instanceof Error && err.name === 'AbortError') return;
     onError(err instanceof Error ? err : new Error('Streaming failed'));
   }
+}
+
+interface GeminiGenerateContentResponse {
+  candidates?: { content?: { parts?: GeminiPart[] } }[];
+}
+
+async function postGenerateContent(model: string, body: unknown): Promise<GeminiGenerateContentResponse> {
+  const apiKey = await getApiKey();
+  if (!apiKey) throw new ApiKeyMissingError();
+
+  const response = await fetch(`${GEMINI_BASE_URL}/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new GeminiRequestError(await readErrorMessage(response), { status: response.status });
+  }
+  return response.json();
+}
+
+export interface TranscribeAudioOptions {
+  model: string;
+  uri: string;
+  mimeType: string;
+}
+
+/** Transcribes a recorded voice message to text via a single (non-streaming) prompt. */
+export async function transcribeAudio({ model, uri, mimeType }: TranscribeAudioOptions): Promise<string> {
+  const data = await readFileAsBase64(uri);
+  const result = await postGenerateContent(model, {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: 'Transcribe exactly what is said in this audio clip. Reply with only the transcript text, nothing else.' },
+          { inline_data: { mime_type: mimeType, data } },
+        ],
+      },
+    ],
+  });
+
+  const text = result.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text ?? '')
+    .join('')
+    .trim();
+  if (!text) {
+    throw new GeminiRequestError('Could not transcribe the recording.');
+  }
+  return text;
+}
+
+export interface SynthesizeSpeechOptions {
+  model: string;
+  text: string;
+}
+
+/** Synthesizes speech for a piece of text via Gemini's native TTS, returning a playable local file. */
+export async function synthesizeSpeech({ model, text }: SynthesizeSpeechOptions): Promise<{ uri: string }> {
+  const result = await postGenerateContent(model, {
+    contents: [{ role: 'user', parts: [{ text }] }],
+    generationConfig: {
+      responseModalities: ['AUDIO'],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: 'Kore' },
+        },
+      },
+    },
+  });
+
+  const part = result.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data ?? p.inline_data?.data);
+  const base64Audio = part?.inlineData?.data ?? part?.inline_data?.data;
+  if (!base64Audio) {
+    throw new GeminiRequestError('No audio was returned.');
+  }
+
+  const stored = await writeTtsAudioToPermanentStorage(base64Audio);
+  return { uri: stored.uri };
 }

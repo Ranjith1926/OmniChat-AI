@@ -10,6 +10,14 @@ export const MODEL_PRESETS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-
 
 export const DEFAULT_MODEL = MODEL_PRESETS[0];
 
+/**
+ * Gemini's native text-to-speech model. Also not guaranteed current — verify at
+ * https://ai.google.dev/gemini-api/docs/speech-generation. Not user-configurable
+ * in Settings since it's an implementation detail of the "listen" feature, not a
+ * chat model choice.
+ */
+export const DEFAULT_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
+
 export class ApiKeyMissingError extends Error {
   constructor() {
     super('No Gemini API key is configured. Add one in Settings.');

@@ -49,7 +49,12 @@ const config: ExpoConfig = {
         imageWidth: 76,
       },
     ],
-    'expo-audio',
+    [
+      'expo-audio',
+      {
+        microphonePermission: 'Allow OmniChat AI to use your microphone to record voice messages.',
+      },
+    ],
     'expo-sqlite',
     'expo-secure-store',
     [
