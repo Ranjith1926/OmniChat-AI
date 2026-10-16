@@ -1,12 +1,16 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider } from 'expo-router';
+import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootProvider } from '@/context';
+import { useSettings } from '@/features/settings/hooks/useSettings';
 import { AppThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
+import { DATABASE_NAME, migrateDatabase } from '@/services/db/schema';
 
 function Navigation() {
   const theme = useAppTheme();
+  useSettings(); // hydrates theme/model from SQLite and hasApiKey from SecureStore on boot
 
   return (
     <NavigationThemeProvider value={theme.scheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -23,11 +27,13 @@ function Navigation() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <RootProvider>
-        <AppThemeProvider>
-          <Navigation />
-        </AppThemeProvider>
-      </RootProvider>
+      <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrateDatabase}>
+        <RootProvider>
+          <AppThemeProvider>
+            <Navigation />
+          </AppThemeProvider>
+        </RootProvider>
+      </SQLiteProvider>
     </SafeAreaProvider>
   );
 }

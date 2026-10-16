@@ -1,8 +1,11 @@
+import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { chatActions, useAppDispatch, useAppState } from '@/context';
+import { chatActions, conversationsActions, useAppDispatch, useAppState } from '@/context';
 import { streamChatResponse } from '@/services/api/gemini';
-import type { Message } from '@/types';
+import { deriveTitle, insertConversation, touchConversation } from '@/services/db/conversations';
+import { deleteMessage as deleteMessageDb, deleteMessagesAfter, insertMessage, listMessages, updateMessage as updateMessageDb } from '@/services/db/messages';
+import type { Conversation, Message } from '@/types';
 import { generateId } from '@/utils/id';
 
 function createMessage(conversationId: string, role: Message['role'], content: string, status: Message['status']): Message {
@@ -12,19 +15,54 @@ function createMessage(conversationId: string, role: Message['role'], content: s
 const EMPTY_MESSAGES: Message[] = [];
 
 export function useChat(conversationId: string) {
+  const db = useSQLiteContext();
   const dispatch = useAppDispatch();
   const chatState = useAppState().chat;
-  const model = useAppState().settings.model;
+  const { model } = useAppState().settings;
+  const conversations = useAppState().conversations.items;
   const messages = chatState.messagesByConversation[conversationId] ?? EMPTY_MESSAGES;
   const isStreaming = chatState.streamingMessageId != null;
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     dispatch(chatActions.setActiveConversation(conversationId));
+
+    if (chatState.messagesByConversation[conversationId] === undefined) {
+      listMessages(db, conversationId).then((loaded) => {
+        dispatch(chatActions.setMessages(conversationId, loaded));
+      });
+    }
+
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [conversationId, dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, db, dispatch]);
+
+  const ensureConversationExists = useCallback(
+    async (firstUserMessage: string) => {
+      const now = Date.now();
+      const conversation: Conversation = {
+        id: conversationId,
+        title: deriveTitle(firstUserMessage),
+        model,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await insertConversation(db, conversation);
+      dispatch(conversationsActions.upsertConversation(conversation));
+    },
+    [conversationId, db, dispatch, model]
+  );
+
+  const markConversationActivity = useCallback(() => {
+    const now = Date.now();
+    touchConversation(db, conversationId, now);
+    const existing = conversations.find((conversation) => conversation.id === conversationId);
+    if (existing) {
+      dispatch(conversationsActions.upsertConversation({ ...existing, updatedAt: now }));
+    }
+  }, [conversationId, conversations, db, dispatch]);
 
   const runAssistantTurn = useCallback(
     (historyForRequest: Message[], existingAssistantId?: string) => {
@@ -32,17 +70,18 @@ export function useChat(conversationId: string) {
 
       if (existingAssistantId) {
         dispatch(chatActions.updateMessage(conversationId, assistantId, { content: '', status: 'streaming', error: undefined }));
+        updateMessageDb(db, assistantId, { content: '', status: 'streaming', error: null });
       } else {
-        dispatch(
-          chatActions.addMessage(conversationId, {
-            id: assistantId,
-            conversationId,
-            role: 'assistant',
-            content: '',
-            status: 'streaming',
-            createdAt: Date.now(),
-          })
-        );
+        const assistantMessage: Message = {
+          id: assistantId,
+          conversationId,
+          role: 'assistant',
+          content: '',
+          status: 'streaming',
+          createdAt: Date.now(),
+        };
+        dispatch(chatActions.addMessage(conversationId, assistantMessage));
+        insertMessage(db, assistantMessage);
       }
       dispatch(chatActions.setStreamingMessage(assistantId));
       dispatch(chatActions.setError(null));
@@ -62,29 +101,37 @@ export function useChat(conversationId: string) {
         onDone: () => {
           dispatch(chatActions.updateMessage(conversationId, assistantId, { status: 'complete' }));
           dispatch(chatActions.setStreamingMessage(null));
+          updateMessageDb(db, assistantId, { content: accumulated, status: 'complete', error: null });
+          markConversationActivity();
           abortControllerRef.current = null;
         },
         onError: (err) => {
           dispatch(chatActions.updateMessage(conversationId, assistantId, { status: 'error', error: err.message }));
           dispatch(chatActions.setStreamingMessage(null));
           dispatch(chatActions.setError(err.message));
+          updateMessageDb(db, assistantId, { content: accumulated, status: 'error', error: err.message });
           abortControllerRef.current = null;
         },
       });
     },
-    [conversationId, dispatch, model]
+    [conversationId, db, dispatch, markConversationActivity, model]
   );
 
   const sendMessage = useCallback(
-    (content: string) => {
+    async (content: string) => {
       const trimmed = content.trim();
       if (!trimmed || isStreaming) return;
 
+      if (messages.length === 0) {
+        await ensureConversationExists(trimmed);
+      }
+
       const userMessage = createMessage(conversationId, 'user', trimmed, 'complete');
       dispatch(chatActions.addMessage(conversationId, userMessage));
+      await insertMessage(db, userMessage);
       runAssistantTurn([...messages, userMessage]);
     },
-    [conversationId, dispatch, isStreaming, messages, runAssistantTurn]
+    [conversationId, db, dispatch, ensureConversationExists, isStreaming, messages, runAssistantTurn]
   );
 
   const stopGeneration = useCallback(() => {
@@ -92,10 +139,12 @@ export function useChat(conversationId: string) {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     if (streamingId) {
+      const current = messages.find((message) => message.id === streamingId);
       dispatch(chatActions.updateMessage(conversationId, streamingId, { status: 'complete' }));
       dispatch(chatActions.setStreamingMessage(null));
+      updateMessageDb(db, streamingId, { content: current?.content ?? '', status: 'complete', error: null });
     }
-  }, [chatState.streamingMessageId, conversationId, dispatch]);
+  }, [chatState.streamingMessageId, conversationId, db, dispatch, messages]);
 
   const regenerateMessage = useCallback(
     (assistantMessageId: string) => {
@@ -109,29 +158,32 @@ export function useChat(conversationId: string) {
   );
 
   const editMessage = useCallback(
-    (messageId: string, newContent: string) => {
+    async (messageId: string, newContent: string) => {
       if (isStreaming) return;
       const index = messages.findIndex((message) => message.id === messageId);
       if (index === -1) return;
 
       const updated = { ...messages[index], content: newContent };
       dispatch(chatActions.updateMessage(conversationId, messageId, { content: newContent }));
+      await updateMessageDb(db, messageId, { content: newContent });
 
-      // Resubmit: drop everything after the edited message and get a fresh reply.
       const trailing = messages.slice(index + 1);
       for (const message of trailing) {
         dispatch(chatActions.deleteMessage(conversationId, message.id));
       }
+      await deleteMessagesAfter(db, conversationId, updated.createdAt);
+
       runAssistantTurn([...messages.slice(0, index), updated]);
     },
-    [conversationId, dispatch, isStreaming, messages, runAssistantTurn]
+    [conversationId, db, dispatch, isStreaming, messages, runAssistantTurn]
   );
 
   const deleteMessage = useCallback(
     (messageId: string) => {
       dispatch(chatActions.deleteMessage(conversationId, messageId));
+      deleteMessageDb(db, messageId);
     },
-    [conversationId, dispatch]
+    [conversationId, db, dispatch]
   );
 
   const retryLastError = useCallback(() => {

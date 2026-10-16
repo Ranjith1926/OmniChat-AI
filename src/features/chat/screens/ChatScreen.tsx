@@ -8,6 +8,7 @@ import { IconButton, Text } from '@/components/atoms';
 import { EmptyState, ErrorState } from '@/components/molecules';
 import { Composer, MessageBubble } from '@/components/organisms';
 import { Screen } from '@/components/templates/Screen';
+import { useAppState } from '@/context';
 import { useChat } from '@/features/chat/hooks/useChat';
 import type { Message } from '@/types';
 
@@ -17,6 +18,7 @@ export function ChatScreen() {
   const conversationId = id ?? 'new';
   const { messages, isStreaming, error, sendMessage, stopGeneration, regenerateMessage, editMessage, deleteMessage, retryLastError } =
     useChat(conversationId);
+  const conversation = useAppState().conversations.items.find((item) => item.id === conversationId);
   const listRef = useRef<FlatList<Message>>(null);
 
   return (
@@ -35,8 +37,8 @@ export function ChatScreen() {
           <IconButton accessibilityLabel="Back" onPress={() => router.back()}>
             <ChevronLeft size={22} color={theme.colors.text} />
           </IconButton>
-          <Text variant="subtitle" style={{ marginLeft: theme.spacing.xs }}>
-            {conversationId === 'new' ? 'New chat' : 'Chat'}
+          <Text variant="subtitle" numberOfLines={1} style={{ marginLeft: theme.spacing.xs, flexShrink: 1 }}>
+            {conversation?.title ?? 'New chat'}
           </Text>
         </View>
 

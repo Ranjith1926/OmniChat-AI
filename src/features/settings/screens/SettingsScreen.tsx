@@ -1,13 +1,14 @@
 import { Eye, EyeOff, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Button, Divider, IconButton, Text } from '@/components/atoms';
 import { Screen } from '@/components/templates/Screen';
-import { settingsActions, useAppDispatch, useAppState } from '@/context';
+import { useAppDispatch, settingsActions } from '@/context';
+import { useSettings } from '@/features/settings/hooks/useSettings';
 import { MODEL_PRESETS } from '@/services/api/apiConfig';
-import { clearApiKey, hasStoredApiKey, setApiKey } from '@/services/storage/secureConfig';
+import { clearApiKey, setApiKey } from '@/services/storage/secureConfig';
 import type { ThemeMode } from '@/types';
 
 const THEME_MODES: { mode: ThemeMode; label: string }[] = [
@@ -19,19 +20,15 @@ const THEME_MODES: { mode: ThemeMode; label: string }[] = [
 export function SettingsScreen() {
   const theme = useAppTheme();
   const dispatch = useAppDispatch();
-  const { themeMode, model, hasApiKey } = useAppState().settings;
+  const { themeMode, model, hasApiKey, setThemeMode, setModel } = useSettings();
 
   const [keyDraft, setKeyDraft] = useState('');
   const [modelDraft, setModelDraft] = useState(model);
   const [keyVisible, setKeyVisible] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
 
-  useEffect(() => {
-    hasStoredApiKey().then((stored) => dispatch(settingsActions.setHasApiKey(stored)));
-  }, [dispatch]);
-
   const selectPreset = (preset: string) => {
-    dispatch(settingsActions.setModel(preset));
+    setModel(preset);
     setModelDraft(preset);
   };
 
@@ -52,7 +49,7 @@ export function SettingsScreen() {
   const handleModelBlur = () => {
     const trimmed = modelDraft.trim();
     if (trimmed && trimmed !== model) {
-      dispatch(settingsActions.setModel(trimmed));
+      setModel(trimmed);
     } else {
       setModelDraft(model);
     }
@@ -73,7 +70,7 @@ export function SettingsScreen() {
               label={label}
               size="sm"
               variant={themeMode === mode ? 'primary' : 'secondary'}
-              onPress={() => dispatch(settingsActions.setThemeMode(mode))}
+              onPress={() => setThemeMode(mode)}
             />
           ))}
         </View>
