@@ -1,0 +1,167 @@
+import { fetch } from 'expo/fetch';
+
+import { ApiKeyMissingError, GEMINI_BASE_URL, GeminiRequestError } from './apiConfig';
+import { getApiKey } from '@/services/storage/secureConfig';
+import type { Message } from '@/types';
+
+interface GeminiPart {
+  text?: string;
+}
+
+interface GeminiContent {
+  role: 'user' | 'model';
+  parts: GeminiPart[];
+}
+
+interface GeminiRequestBody {
+  contents: GeminiContent[];
+  systemInstruction?: { parts: GeminiPart[] };
+}
+
+function buildGeminiRequest(messages: Message[]): GeminiRequestBody {
+  const systemTexts: string[] = [];
+  const contents: GeminiContent[] = [];
+
+  for (const message of messages) {
+    if (!message.content.trim()) continue;
+    if (message.role === 'system') {
+      systemTexts.push(message.content);
+      continue;
+    }
+    contents.push({
+      role: message.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: message.content }],
+    });
+  }
+
+  return {
+    contents,
+    systemInstruction: systemTexts.length > 0 ? { parts: [{ text: systemTexts.join('\n\n') }] } : undefined,
+  };
+}
+
+interface GeminiStreamChunk {
+  candidates?: {
+    content?: { parts?: GeminiPart[] };
+    finishReason?: string;
+  }[];
+  promptFeedback?: { blockReason?: string };
+}
+
+function parseSseBlock(block: string): GeminiStreamChunk | null {
+  const dataLine = block.split('\n').find((line) => line.startsWith('data:'));
+  if (!dataLine) return null;
+
+  const raw = dataLine.slice('data:'.length).trim();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as GeminiStreamChunk;
+  } catch {
+    return null;
+  }
+}
+
+function extractText(chunk: GeminiStreamChunk): string {
+  return chunk.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: { message?: string } };
+    if (body?.error?.message) return body.error.message;
+  } catch {
+    // body wasn't JSON (or already consumed) — fall through to generic message
+  }
+  return `Request failed with status ${response.status}`;
+}
+
+export interface StreamChatOptions {
+  model: string;
+  messages: Message[];
+  signal?: AbortSignal;
+  onDelta: (delta: string) => void;
+  onDone: (fullText: string) => void;
+  onError: (error: Error) => void;
+}
+
+export async function streamChatResponse({
+  model,
+  messages,
+  signal,
+  onDelta,
+  onDone,
+  onError,
+}: StreamChatOptions): Promise<void> {
+  const apiKey = await getApiKey();
+  if (!apiKey) {
+    onError(new ApiKeyMissingError());
+    return;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${GEMINI_BASE_URL}/models/${model}:streamGenerateContent?alt=sse`, {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify(buildGeminiRequest(messages)),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return;
+    onError(err instanceof Error ? err : new Error('Network request failed'));
+    return;
+  }
+
+  if (!response.ok || !response.body) {
+    onError(new GeminiRequestError(await readErrorMessage(response), { status: response.status }));
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+  let blockReason: string | null = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let separatorIndex: number;
+      while ((separatorIndex = buffer.indexOf('\n\n')) !== -1) {
+        const block = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + 2);
+
+        const chunk = parseSseBlock(block);
+        if (!chunk) continue;
+
+        if (chunk.promptFeedback?.blockReason) {
+          blockReason = chunk.promptFeedback.blockReason;
+        }
+
+        const delta = extractText(chunk);
+        if (delta) {
+          fullText += delta;
+          onDelta(delta);
+        }
+      }
+    }
+
+    if (fullText.length === 0 && blockReason) {
+      onError(new GeminiRequestError(`The prompt was blocked (${blockReason}).`));
+      return;
+    }
+
+    onDone(fullText);
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return;
+    onError(err instanceof Error ? err : new Error('Streaming failed'));
+  }
+}

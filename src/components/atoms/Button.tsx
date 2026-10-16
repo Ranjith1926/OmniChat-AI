@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, type PressableProps } from 'react-native';
+import { Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { Loader } from './Loader';
@@ -12,6 +12,8 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  /** Outer positioning style (margin, alignSelf, etc.) — merged after the button's own visual style. */
+  style?: StyleProp<ViewStyle>;
 }
 
 const sizePadding: Record<ButtonSize, { vertical: number; horizontal: number }> = {
@@ -20,7 +22,7 @@ const sizePadding: Record<ButtonSize, { vertical: number; horizontal: number }> 
   lg: { vertical: 16, horizontal: 20 },
 };
 
-export function Button({ label, variant = 'primary', size = 'md', loading, disabled, ...rest }: ButtonProps) {
+export function Button({ label, variant = 'primary', size = 'md', loading, disabled, style, ...rest }: ButtonProps) {
   const theme = useAppTheme();
   const padding = sizePadding[size];
   const isDisabled = disabled || loading;
@@ -58,6 +60,7 @@ export function Button({ label, variant = 'primary', size = 'md', loading, disab
           borderRadius: theme.radius.md,
           opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
         },
+        style,
       ]}
     >
       {loading ? <Loader size="small" color={textColor} /> : <Text style={{ color: textColor, fontWeight: theme.fontWeight.semibold }}>{label}</Text>}

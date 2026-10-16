@@ -1,10 +1,11 @@
 import { ActionTypes } from '../actionTypes';
 import type { RootAction } from '../actions';
+import { DEFAULT_MODEL } from '@/services/api/apiConfig';
 import type { Settings } from '@/types';
 
 export const settingsInitialState: Settings = {
   themeMode: 'system',
-  model: 'gpt-4o',
+  model: DEFAULT_MODEL,
   hasApiKey: false,
 };
 

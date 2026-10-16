@@ -6,6 +6,7 @@ import { useAppTheme } from '@/providers/ThemeProvider';
 import { IconButton, Text } from '@/components/atoms';
 import { EmptyState } from '@/components/molecules';
 import { Screen } from '@/components/templates/Screen';
+import { generateId } from '@/utils/id';
 
 export function HistoryScreen() {
   const theme = useAppTheme();
@@ -18,7 +19,7 @@ export function HistoryScreen() {
           <IconButton accessibilityLabel="Settings" onPress={() => router.push('/settings')}>
             <SettingsIcon size={22} color={theme.colors.text} />
           </IconButton>
-          <IconButton accessibilityLabel="New chat" variant="surface" onPress={() => router.push('/chat/new')}>
+          <IconButton accessibilityLabel="New chat" variant="surface" onPress={() => router.push(`/chat/${generateId()}`)}>
             <MessageSquarePlus size={22} color={theme.colors.primary} />
           </IconButton>
         </View>
