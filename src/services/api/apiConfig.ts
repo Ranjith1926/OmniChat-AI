@@ -1,14 +1,24 @@
 export const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
-/**
- * Seeded defaults for the model picker — not an exhaustive or guaranteed-current list.
- * Google's available Gemini models change over time; confirm what's live on your
- * account at https://ai.google.dev/gemini-api/docs/models before shipping. Users can
- * type a custom model id in Settings regardless of this list.
- */
-export const MODEL_PRESETS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'] as const;
+export interface ModelTier {
+  label: string;
+  description: string;
+  model: string;
+}
 
-export const DEFAULT_MODEL = MODEL_PRESETS[0];
+/**
+ * User-facing speed/quality tiers mapped to specific Gemini model ids, so Settings shows
+ * "Low / Medium / High" instead of raw model names that mean nothing to most users.
+ * Google's available Gemini models change over time; confirm what's live on your account
+ * at https://ai.google.dev/gemini-api/docs/models before shipping.
+ */
+export const MODEL_TIERS: ModelTier[] = [
+  { label: 'Low', description: 'Fastest, lightest', model: 'gemini-2.5-flash-lite' },
+  { label: 'Medium', description: 'Balanced', model: 'gemini-2.5-flash' },
+  { label: 'High', description: 'Most capable', model: 'gemini-2.5-pro' },
+];
+
+export const DEFAULT_MODEL = MODEL_TIERS[1].model;
 
 /**
  * Gemini's native text-to-speech model. Also not guaranteed current — verify at

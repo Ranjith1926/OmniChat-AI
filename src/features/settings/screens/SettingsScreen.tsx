@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ChevronLeft, ChevronRight, Monitor, Moon, Palette, Sparkles, Sun } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { ScrollView, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
@@ -11,7 +11,7 @@ import { AnimatedPressable, Avatar, Button, IconButton, Text } from '@/component
 import { Screen } from '@/components/templates/Screen';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSettings } from '@/features/settings/hooks/useSettings';
-import { MODEL_PRESETS } from '@/services/api/apiConfig';
+import { MODEL_TIERS } from '@/services/api/apiConfig';
 import type { Theme } from '@/theme';
 import type { ThemeMode } from '@/types';
 
@@ -141,23 +141,7 @@ export function SettingsScreen() {
   const { themeMode, model, setThemeMode, setModel } = useSettings();
   const { user, isAuthenticated } = useAuth();
 
-  const [modelDraft, setModelDraft] = useState(model);
-
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-
-  const selectPreset = (preset: string) => {
-    setModel(preset);
-    setModelDraft(preset);
-  };
-
-  const handleModelBlur = () => {
-    const trimmed = modelDraft.trim();
-    if (trimmed && trimmed !== model) {
-      setModel(trimmed);
-    } else {
-      setModelDraft(model);
-    }
-  };
 
   return (
     <Screen padded={false}>
@@ -215,38 +199,20 @@ export function SettingsScreen() {
         </SettingsCard>
 
         <SettingsCard theme={theme}>
-          <SectionHeader theme={theme} icon={Sparkles} label="Model" />
-          <Text variant="caption">
-            Gemini model id used for new messages. Verify current model availability at ai.google.dev before relying on one.
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            {MODEL_PRESETS.map((preset) => (
+          <SectionHeader theme={theme} icon={Sparkles} label="Response quality" />
+          <Text variant="caption">How capable vs. how fast new responses should be.</Text>
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            {MODEL_TIERS.map((tier) => (
               <Button
-                key={preset}
-                label={preset}
+                key={tier.model}
+                label={tier.label}
                 size="sm"
-                variant={model === preset ? 'primary' : 'secondary'}
-                onPress={() => selectPreset(preset)}
+                variant={model === tier.model ? 'primary' : 'secondary'}
+                onPress={() => setModel(tier.model)}
+                style={{ flex: 1 }}
               />
             ))}
           </View>
-          <TextInput
-            value={modelDraft}
-            onChangeText={setModelDraft}
-            onBlur={handleModelBlur}
-            placeholder="Custom model id"
-            placeholderTextColor={theme.colors.textTertiary}
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={{
-              padding: theme.spacing.md,
-              borderRadius: theme.radius.md,
-              backgroundColor: theme.colors.surface,
-              color: theme.colors.text,
-              fontSize: theme.fontSize.sm,
-              fontFamily: theme.fontFamily.mono,
-            }}
-          />
         </SettingsCard>
 
         <Text variant="caption" color={theme.colors.textTertiary} style={{ textAlign: 'center', marginTop: theme.spacing.sm }}>
