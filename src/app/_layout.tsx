@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import mobileAds from 'react-native-google-mobile-ads';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootProvider } from '@/context';
@@ -18,6 +19,10 @@ import { DATABASE_NAME, migrateDatabase } from '@/services/db/schema';
 // auto-hiding the instant the native activity launches (which left a blank-screen gap
 // during JS bundling / SQLite migration on slower startups).
 SplashScreen.preventAutoHideAsync();
+
+// Fire-and-forget at app launch, per the SDK's own guidance — ads can't load until this
+// resolves, but nothing in the app needs to block on it.
+mobileAds().initialize();
 
 // Upstream noise from expo-router's Drawer (react-native-screens/reanimated transitions
 // passing a web-only "dependencies" option) — not caused by, or actionable in, our code.

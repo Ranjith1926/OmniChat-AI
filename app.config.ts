@@ -81,6 +81,12 @@ const config: ExpoConfig = {
     ],
     'expo-document-picker',
     'react-native-audio-api',
+    [
+      'react-native-google-mobile-ads',
+      {
+        androidAppId: 'ca-app-pub-8517213704157695~1334775653',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

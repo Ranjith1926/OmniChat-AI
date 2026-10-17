@@ -1,4 +1,5 @@
 export * from './AttachmentThumbnail';
+export * from './BannerAdView';
 export * from './CodeBlock';
 export * from './ConfirmationDialog';
 export * from './EmptyState';

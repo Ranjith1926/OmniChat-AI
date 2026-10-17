@@ -6,7 +6,7 @@ import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { IconButton } from '@/components/atoms';
-import { EmptyState, ErrorState, GuestLimitBanner } from '@/components/molecules';
+import { BannerAdView, EmptyState, ErrorState, GuestLimitBanner } from '@/components/molecules';
 import { Composer, MessageBubble } from '@/components/organisms';
 import { Screen } from '@/components/templates/Screen';
 import { useChat } from '@/features/chat/hooks/useChat';
@@ -75,6 +75,8 @@ export function ChatScreen() {
         {error ? <ErrorState message={error} onRetry={retryLastError} /> : null}
 
         {guestLimitReached ? <GuestLimitBanner onSignIn={() => router.push('/signin')} /> : null}
+
+        <BannerAdView />
 
         <Composer onSend={sendMessage} onStop={stopGeneration} isStreaming={isStreaming} disabled={guestLimitReached} />
       </KeyboardAvoidingView>
