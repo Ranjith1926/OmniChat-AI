@@ -1,5 +1,6 @@
 import type { RootAction } from './actions';
 import { attachmentsInitialState, attachmentsReducer, type AttachmentsState } from './reducers/attachmentsReducer';
+import { authInitialState, authReducer } from './reducers/authReducer';
 import { chatInitialState, chatReducer, type ChatState } from './reducers/chatReducer';
 import {
   conversationsInitialState,
@@ -8,7 +9,7 @@ import {
 } from './reducers/conversationsReducer';
 import { settingsInitialState, settingsReducer } from './reducers/settingsReducer';
 import { voiceInitialState, voiceReducer } from './reducers/voiceReducer';
-import type { Settings, VoiceState } from '@/types';
+import type { AuthState, Settings, VoiceState } from '@/types';
 
 export interface RootState {
   chat: ChatState;
@@ -16,6 +17,7 @@ export interface RootState {
   attachments: AttachmentsState;
   voice: VoiceState;
   settings: Settings;
+  auth: AuthState;
 }
 
 export const rootInitialState: RootState = {
@@ -24,6 +26,7 @@ export const rootInitialState: RootState = {
   attachments: attachmentsInitialState,
   voice: voiceInitialState,
   settings: settingsInitialState,
+  auth: authInitialState,
 };
 
 type SliceReducer<K extends keyof RootState> = (state: RootState[K], action: RootAction) => RootState[K];
@@ -34,6 +37,7 @@ const sliceReducers: { [K in keyof RootState]: SliceReducer<K> } = {
   attachments: attachmentsReducer,
   voice: voiceReducer,
   settings: settingsReducer,
+  auth: authReducer,
 };
 
 /** Hand-rolled combineReducers: dispatches every action to every slice. */

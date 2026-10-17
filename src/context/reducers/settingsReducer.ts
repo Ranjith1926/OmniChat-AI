@@ -6,7 +6,6 @@ import type { Settings } from '@/types';
 export const settingsInitialState: Settings = {
   themeMode: 'system',
   model: DEFAULT_MODEL,
-  hasApiKey: false,
 };
 
 export function settingsReducer(state: Settings = settingsInitialState, action: RootAction): Settings {
@@ -16,9 +15,6 @@ export function settingsReducer(state: Settings = settingsInitialState, action: 
 
     case ActionTypes.settings.SET_MODEL:
       return { ...state, model: action.payload.model };
-
-    case ActionTypes.settings.SET_HAS_API_KEY:
-      return { ...state, hasApiKey: action.payload.hasApiKey };
 
     case ActionTypes.settings.HYDRATE:
       return { ...state, ...action.payload };

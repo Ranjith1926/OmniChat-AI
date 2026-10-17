@@ -35,7 +35,10 @@ export const ActionTypes = {
   settings: {
     SET_THEME_MODE: 'settings/SET_THEME_MODE',
     SET_MODEL: 'settings/SET_MODEL',
-    SET_HAS_API_KEY: 'settings/SET_HAS_API_KEY',
     HYDRATE: 'settings/HYDRATE',
+  },
+  auth: {
+    SET_USER: 'auth/SET_USER',
+    SET_HYDRATED: 'auth/SET_HYDRATED',
   },
 } as const;

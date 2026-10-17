@@ -1,7 +1,10 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
+import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -11,9 +14,22 @@ import { AppThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 import { DrawerContent } from '@/components/organisms';
 import { DATABASE_NAME, migrateDatabase } from '@/services/db/schema';
 
+// Keep the native splash screen up until navigation is ready to render, instead of it
+// auto-hiding the instant the native activity launches (which left a blank-screen gap
+// during JS bundling / SQLite migration on slower startups).
+SplashScreen.preventAutoHideAsync();
+
+// Upstream noise from expo-router's Drawer (react-native-screens/reanimated transitions
+// passing a web-only "dependencies" option) — not caused by, or actionable in, our code.
+LogBox.ignoreLogs(['[Reanimated] Dependencies should only be used']);
+
 function Navigation() {
   const theme = useAppTheme();
-  useSettings(); // hydrates theme/model from SQLite and hasApiKey from SecureStore on boot
+  useSettings(); // hydrates theme/model from SQLite on boot
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <NavigationThemeProvider value={theme.scheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -32,6 +48,9 @@ function Navigation() {
         <Drawer.Screen name="chat/[id]" />
         <Drawer.Screen name="settings" />
         <Drawer.Screen name="camera" options={{ swipeEnabled: false }} />
+        <Drawer.Screen name="signin" options={{ swipeEnabled: false }} />
+        <Drawer.Screen name="signup" options={{ swipeEnabled: false }} />
+        <Drawer.Screen name="profile" />
       </Drawer>
     </NavigationThemeProvider>
   );

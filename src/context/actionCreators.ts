@@ -1,12 +1,13 @@
 import { ActionTypes } from './actionTypes';
 import type {
   AttachmentsAction,
+  AuthAction,
   ChatAction,
   ConversationsAction,
   SettingsAction,
   VoiceAction,
 } from './actions';
-import type { Attachment, Conversation, Message, Settings, ThemeMode } from '@/types';
+import type { Attachment, Conversation, Message, Settings, ThemeMode, User } from '@/types';
 
 export const chatActions = {
   setActiveConversation: (conversationId: string | null): ChatAction => ({
@@ -113,12 +114,16 @@ export const settingsActions = {
     type: ActionTypes.settings.SET_MODEL,
     payload: { model },
   }),
-  setHasApiKey: (hasApiKey: boolean): SettingsAction => ({
-    type: ActionTypes.settings.SET_HAS_API_KEY,
-    payload: { hasApiKey },
-  }),
   hydrate: (settings: Partial<Settings>): SettingsAction => ({
     type: ActionTypes.settings.HYDRATE,
     payload: settings,
   }),
+};
+
+export const authActions = {
+  setUser: (user: User | null): AuthAction => ({
+    type: ActionTypes.auth.SET_USER,
+    payload: { user },
+  }),
+  setHydrated: (): AuthAction => ({ type: ActionTypes.auth.SET_HYDRATED }),
 };

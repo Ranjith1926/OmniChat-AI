@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/drawer';
-import { MessageSquarePlus, Settings as SettingsIcon } from 'lucide-react-native';
+import { MessageSquarePlus, Settings as SettingsIcon, UserRound } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { IconButton, Text } from '@/components/atoms';
+import { AnimatedPressable, Avatar, IconButton, Text } from '@/components/atoms';
 import { ConfirmationDialog, EmptyState, LoadingState, SearchBar } from '@/components/molecules';
 import { ConversationListItem } from './ConversationListItem';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConversations } from '@/features/history/hooks/useConversations';
 import type { Conversation } from '@/types';
 import { generateId } from '@/utils/id';
@@ -15,6 +16,7 @@ import { generateId } from '@/utils/id';
 export function DrawerContent(props: DrawerContentComponentProps) {
   const theme = useAppTheme();
   const { conversations, isLoading, searchQuery, setSearchQuery, renameConversation, deleteConversation } = useConversations();
+  const { user, isAuthenticated } = useAuth();
   const [pendingDelete, setPendingDelete] = useState<Conversation | null>(null);
 
   const go = (href: string) => {
@@ -65,10 +67,43 @@ export function DrawerContent(props: DrawerContentComponentProps) {
           borderTopColor: theme.colors.border,
         }}
       >
-        <Pressable
+        <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityLabel={isAuthenticated ? 'Profile' : 'Sign in'}
+          onPress={() => go(isAuthenticated ? '/profile' : '/signin')}
+          pressScale={0.97}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            paddingVertical: theme.spacing.md,
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          {isAuthenticated ? (
+            <Avatar uri={user?.avatarUri} name={user?.name} size={40} />
+          ) : (
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: theme.radius.full,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.colors.surface,
+              }}
+            >
+              <UserRound size={18} color={theme.colors.text} />
+            </View>
+          )}
+          <Text variant="bodySecondary">{isAuthenticated ? user?.name : 'Sign in'}</Text>
+        </AnimatedPressable>
+
+        <AnimatedPressable
           accessibilityRole="button"
           accessibilityLabel="Settings"
           onPress={() => go('/settings')}
+          pressScale={0.97}
           style={({ pressed }) => ({
             flexDirection: 'row',
             alignItems: 'center',
@@ -90,7 +125,7 @@ export function DrawerContent(props: DrawerContentComponentProps) {
             <SettingsIcon size={18} color={theme.colors.text} />
           </View>
           <Text variant="bodySecondary">Settings</Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       <ConfirmationDialog

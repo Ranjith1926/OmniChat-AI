@@ -1,5 +1,5 @@
 import { ActionTypes } from './actionTypes';
-import type { Attachment, Conversation, Message, ThemeMode } from '@/types';
+import type { Attachment, Conversation, Message, ThemeMode, User } from '@/types';
 
 // ---- chat ----
 export type ChatAction =
@@ -47,7 +47,17 @@ export type VoiceAction =
 export type SettingsAction =
   | { type: typeof ActionTypes.settings.SET_THEME_MODE; payload: { themeMode: ThemeMode } }
   | { type: typeof ActionTypes.settings.SET_MODEL; payload: { model: string } }
-  | { type: typeof ActionTypes.settings.SET_HAS_API_KEY; payload: { hasApiKey: boolean } }
   | { type: typeof ActionTypes.settings.HYDRATE; payload: Partial<import('@/types').Settings> };
 
-export type RootAction = ChatAction | ConversationsAction | AttachmentsAction | VoiceAction | SettingsAction;
+// ---- auth ----
+export type AuthAction =
+  | { type: typeof ActionTypes.auth.SET_USER; payload: { user: User | null } }
+  | { type: typeof ActionTypes.auth.SET_HYDRATED };
+
+export type RootAction =
+  | ChatAction
+  | ConversationsAction
+  | AttachmentsAction
+  | VoiceAction
+  | SettingsAction
+  | AuthAction;
