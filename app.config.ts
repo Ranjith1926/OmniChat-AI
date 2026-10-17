@@ -18,6 +18,10 @@ const config: ExpoConfig = {
   icon: './assets/images/icon.png',
   scheme: 'omnichatai',
   userInterfaceStyle: 'automatic',
+  // Native-only app (SQLite, camera, secure storage, AdMob) — none of it runs on web, and
+  // declaring web support made EAS eager-bundle a web server manifest that pulled in
+  // react-native-google-mobile-ads' native-only view component and failed the build.
+  platforms: ['ios', 'android'],
   ios: {
     bundleIdentifier: 'com.anonymous.omnichatai',
   },
@@ -36,10 +40,6 @@ const config: ExpoConfig = {
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     ],
     package: 'com.anonymous.omnichatai',
-  },
-  web: {
-    output: 'server',
-    favicon: './assets/images/favicon.png',
   },
   plugins: [
     'expo-router',
