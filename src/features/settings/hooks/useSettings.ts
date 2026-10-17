@@ -3,7 +3,6 @@ import { useCallback, useEffect } from 'react';
 
 import { settingsActions, useAppDispatch, useAppState } from '@/context';
 import { getAllSettings, setSetting } from '@/services/db/appSettings';
-import { hasStoredApiKey } from '@/services/storage/secureConfig';
 import type { ThemeMode } from '@/types';
 
 export function useSettings() {
@@ -22,7 +21,6 @@ export function useSettings() {
           })
         );
       }
-      dispatch(settingsActions.setHasApiKey(await hasStoredApiKey()));
     })();
   }, [db, dispatch]);
 

@@ -1,33 +1,61 @@
+import Constants from 'expo-constants';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ChevronLeft, Eye, EyeOff, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Monitor, Moon, Palette, Sparkles, Sun } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { Button, IconButton, Text } from '@/components/atoms';
+import { AnimatedPressable, Avatar, Button, IconButton, Text } from '@/components/atoms';
 import { Screen } from '@/components/templates/Screen';
-import { useAppDispatch, settingsActions } from '@/context';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSettings } from '@/features/settings/hooks/useSettings';
 import { MODEL_PRESETS } from '@/services/api/apiConfig';
-import { clearApiKey, setApiKey } from '@/services/storage/secureConfig';
 import type { Theme } from '@/theme';
 import type { ThemeMode } from '@/types';
 
-const THEME_MODES: { mode: ThemeMode; label: string }[] = [
-  { mode: 'light', label: 'Light' },
-  { mode: 'dark', label: 'Dark' },
-  { mode: 'system', label: 'System' },
+const THEME_MODES: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
+  { mode: 'light', label: 'Light', icon: Sun },
+  { mode: 'dark', label: 'Dark', icon: Moon },
+  { mode: 'system', label: 'System', icon: Monitor },
 ];
+
+function SectionHeader({ theme, icon: Icon, label }: { theme: Theme; icon: typeof Sun; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs, flexShrink: 1 }}>
+      <View
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: theme.radius.sm,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.primarySoft,
+          flexShrink: 0,
+        }}
+      >
+        <Icon size={14} color={theme.colors.primarySoftText} />
+      </View>
+      <Text variant="subtitle" numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
 
 function SettingsCard({ theme, children }: { theme: Theme; children: ReactNode }) {
   return (
     <View
       style={{
-        backgroundColor: theme.colors.surface,
+        backgroundColor: theme.colors.surfaceElevated,
         borderRadius: theme.radius.lg,
         padding: theme.spacing.lg,
         marginBottom: theme.spacing.lg,
         gap: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        ...theme.shadows.sm,
       }}
     >
       {children}
@@ -35,33 +63,91 @@ function SettingsCard({ theme, children }: { theme: Theme; children: ReactNode }
   );
 }
 
+function ThemeModeSwitcher({ theme, themeMode, onChange }: { theme: Theme; themeMode: ThemeMode; onChange: (mode: ThemeMode) => void }) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const index = THEME_MODES.findIndex((option) => option.mode === themeMode);
+  const indicatorX = useSharedValue(0);
+
+  const segmentWidth = trackWidth / THEME_MODES.length;
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const width = event.nativeEvent.layout.width;
+    setTrackWidth(width);
+    indicatorX.value = (width / THEME_MODES.length) * index;
+  };
+
+  const animatedIndicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+  }));
+
+  const handleSelect = (mode: ThemeMode, selectedIndex: number) => {
+    onChange(mode);
+    // eslint-disable-next-line react-hooks/immutability -- see AnimatedPressable's onPressIn comment.
+    indicatorX.value = withSpring(segmentWidth * selectedIndex, { damping: 18, stiffness: 220 });
+  };
+
+  return (
+    <View
+      onLayout={handleLayout}
+      style={{
+        flexDirection: 'row',
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.md,
+        padding: 4,
+      }}
+    >
+      {trackWidth > 0 ? (
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 4,
+              bottom: 4,
+              left: 4,
+              width: segmentWidth - 4,
+              borderRadius: theme.radius.sm,
+              backgroundColor: theme.colors.surfaceElevated,
+              ...theme.shadows.sm,
+            },
+            animatedIndicatorStyle,
+          ]}
+        />
+      ) : null}
+      {THEME_MODES.map(({ mode, label, icon: Icon }, i) => {
+        const selected = mode === themeMode;
+        return (
+          <AnimatedPressable
+            key={mode}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} theme`}
+            accessibilityState={{ selected }}
+            onPress={() => handleSelect(mode, i)}
+            pressScale={0.95}
+            style={{ flex: 1, alignItems: 'center', gap: 4, paddingVertical: theme.spacing.sm, borderRadius: theme.radius.sm }}
+          >
+            <Icon size={16} color={selected ? theme.colors.primary : theme.colors.textTertiary} />
+            <Text variant="caption" color={selected ? theme.colors.primary : theme.colors.textTertiary}>
+              {label}
+            </Text>
+          </AnimatedPressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function SettingsScreen() {
   const theme = useAppTheme();
-  const dispatch = useAppDispatch();
-  const { themeMode, model, hasApiKey, setThemeMode, setModel } = useSettings();
+  const { themeMode, model, setThemeMode, setModel } = useSettings();
+  const { user, isAuthenticated } = useAuth();
 
-  const [keyDraft, setKeyDraft] = useState('');
   const [modelDraft, setModelDraft] = useState(model);
-  const [keyVisible, setKeyVisible] = useState(false);
-  const [saveState, setSaveState] = useState<'idle' | 'saved'>('idle');
+
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const selectPreset = (preset: string) => {
     setModel(preset);
     setModelDraft(preset);
-  };
-
-  const handleSaveKey = async () => {
-    if (!keyDraft.trim()) return;
-    await setApiKey(keyDraft.trim());
-    dispatch(settingsActions.setHasApiKey(true));
-    setKeyDraft('');
-    setSaveState('saved');
-    setTimeout(() => setSaveState('idle'), 1500);
-  };
-
-  const handleClearKey = async () => {
-    await clearApiKey();
-    dispatch(settingsActions.setHasApiKey(false));
   };
 
   const handleModelBlur = () => {
@@ -92,23 +178,44 @@ export function SettingsScreen() {
       </View>
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: theme.spacing.lg }}>
+        <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityLabel={isAuthenticated ? 'View profile' : 'Sign in'}
+          onPress={() => router.push(isAuthenticated ? '/profile' : '/signin')}
+          pressScale={0.98}
+          style={{ borderRadius: theme.radius.lg, marginBottom: theme.spacing.lg, overflow: 'hidden' }}
+        >
+          <LinearGradient
+            colors={theme.colors.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.md,
+              padding: theme.spacing.lg,
+            }}
+          >
+            <Avatar uri={user?.avatarUri} name={user?.name} size={48} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: theme.colors.onPrimary, fontWeight: theme.fontWeight.semibold, fontSize: theme.fontSize.md }}>
+                {isAuthenticated ? user?.name : 'Sign in'}
+              </Text>
+              <Text style={{ color: theme.colors.onPrimary, opacity: 0.85, fontSize: theme.fontSize.sm }}>
+                {isAuthenticated ? user?.email : 'Set up your profile on this device'}
+              </Text>
+            </View>
+            <ChevronRight size={20} color={theme.colors.onPrimary} />
+          </LinearGradient>
+        </AnimatedPressable>
+
         <SettingsCard theme={theme}>
-          <Text variant="subtitle">Appearance</Text>
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-            {THEME_MODES.map(({ mode, label }) => (
-              <Button
-                key={mode}
-                label={label}
-                size="sm"
-                variant={themeMode === mode ? 'primary' : 'secondary'}
-                onPress={() => setThemeMode(mode)}
-              />
-            ))}
-          </View>
+          <SectionHeader theme={theme} icon={Palette} label="Appearance" />
+          <ThemeModeSwitcher theme={theme} themeMode={themeMode} onChange={setThemeMode} />
         </SettingsCard>
 
         <SettingsCard theme={theme}>
-          <Text variant="subtitle">Model</Text>
+          <SectionHeader theme={theme} icon={Sparkles} label="Model" />
           <Text variant="caption">
             Gemini model id used for new messages. Verify current model availability at ai.google.dev before relying on one.
           </Text>
@@ -134,7 +241,7 @@ export function SettingsScreen() {
             style={{
               padding: theme.spacing.md,
               borderRadius: theme.radius.md,
-              backgroundColor: theme.colors.surfaceElevated,
+              backgroundColor: theme.colors.surface,
               color: theme.colors.text,
               fontSize: theme.fontSize.sm,
               fontFamily: theme.fontFamily.mono,
@@ -142,56 +249,9 @@ export function SettingsScreen() {
           />
         </SettingsCard>
 
-        <SettingsCard theme={theme}>
-          <Text variant="subtitle">API Key</Text>
-          <Text variant="caption">
-            Stored only on this device (SecureStore). A key embedded in a distributed app binary can still be
-            extracted by a determined user — this is fine for your own development and testing, but shipping to
-            other people&rsquo;s devices needs a backend or provider-side key vaulting. See the README.
-          </Text>
-
-          {hasApiKey ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-              <Text variant="bodySecondary">A key is stored on this device.</Text>
-              <IconButton accessibilityLabel="Remove API key" size={32} onPress={handleClearKey}>
-                <Trash2 size={16} color={theme.colors.danger} />
-              </IconButton>
-            </View>
-          ) : null}
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-            <TextInput
-              value={keyDraft}
-              onChangeText={setKeyDraft}
-              placeholder={hasApiKey ? 'Replace key' : 'Paste your Gemini API key'}
-              placeholderTextColor={theme.colors.textTertiary}
-              secureTextEntry={!keyVisible}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={{
-                flex: 1,
-                padding: theme.spacing.md,
-                borderRadius: theme.radius.md,
-                backgroundColor: theme.colors.surfaceElevated,
-                color: theme.colors.text,
-                fontSize: theme.fontSize.sm,
-                fontFamily: theme.fontFamily.mono,
-              }}
-            />
-            <IconButton accessibilityLabel={keyVisible ? 'Hide key' : 'Show key'} onPress={() => setKeyVisible((v) => !v)}>
-              {keyVisible ? <EyeOff size={18} color={theme.colors.textSecondary} /> : <Eye size={18} color={theme.colors.textSecondary} />}
-            </IconButton>
-          </View>
-
-          <Button
-            label={saveState === 'saved' ? 'Saved' : 'Save key'}
-            variant={saveState === 'saved' ? 'secondary' : 'primary'}
-            size="sm"
-            disabled={!keyDraft.trim()}
-            onPress={handleSaveKey}
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </SettingsCard>
+        <Text variant="caption" color={theme.colors.textTertiary} style={{ textAlign: 'center', marginTop: theme.spacing.sm }}>
+          OmniChat AI · v{appVersion}
+        </Text>
       </ScrollView>
     </Screen>
   );

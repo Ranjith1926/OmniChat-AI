@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
+import { AnimatedPressable } from './AnimatedPressable';
 import { Loader } from './Loader';
 import { Text } from './Text';
 
@@ -28,7 +30,7 @@ export function Button({ label, variant = 'primary', size = 'md', loading, disab
   const isDisabled = disabled || loading;
 
   const backgroundColor = {
-    primary: theme.colors.primary,
+    primary: 'transparent',
     secondary: theme.colors.surfaceElevated,
     ghost: 'transparent',
     danger: theme.colors.danger,
@@ -44,11 +46,12 @@ export function Button({ label, variant = 'primary', size = 'md', loading, disab
   const borderColor = variant === 'secondary' ? theme.colors.border : 'transparent';
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled }}
+      pressScale={0.97}
       style={({ pressed }) => [
         styles.base,
         {
@@ -58,13 +61,26 @@ export function Button({ label, variant = 'primary', size = 'md', loading, disab
           paddingVertical: padding.vertical,
           paddingHorizontal: padding.horizontal,
           borderRadius: theme.radius.md,
-          opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
+          opacity: isDisabled ? 0.5 : pressed ? 0.9 : 1,
+          overflow: 'hidden',
         },
         style,
       ]}
     >
-      {loading ? <Loader size="small" color={textColor} /> : <Text style={{ color: textColor, fontWeight: theme.fontWeight.semibold }}>{label}</Text>}
-    </Pressable>
+      {variant === 'primary' ? (
+        <LinearGradient
+          colors={theme.colors.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+      {loading ? (
+        <Loader size="small" color={textColor} />
+      ) : (
+        <Text style={{ color: textColor, fontWeight: theme.fontWeight.semibold }}>{label}</Text>
+      )}
+    </AnimatedPressable>
   );
 }
 

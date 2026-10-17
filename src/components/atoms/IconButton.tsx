@@ -1,6 +1,7 @@
-import { Pressable, type PressableProps } from 'react-native';
+import type { PressableProps } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
+import { AnimatedPressable } from './AnimatedPressable';
 
 interface IconButtonProps extends Omit<PressableProps, 'style'> {
   accessibilityLabel: string;
@@ -13,11 +14,12 @@ export function IconButton({ children, size = 40, variant = 'plain', disabled, .
   const theme = useAppTheme();
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
       disabled={disabled}
       accessibilityRole="button"
       hitSlop={8}
+      pressScale={0.88}
       style={({ pressed }) => [
         {
           width: size,
@@ -31,6 +33,6 @@ export function IconButton({ children, size = 40, variant = 'plain', disabled, .
       ]}
     >
       {children}
-    </Pressable>
+    </AnimatedPressable>
   );
 }

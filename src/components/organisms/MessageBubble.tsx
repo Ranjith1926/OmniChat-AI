@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { Check, Copy, FileText, Pencil, RotateCcw, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { IconButton, Loader, Text } from '@/components/atoms';
@@ -72,7 +73,10 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
   }
 
   return (
-    <View style={{ marginVertical: theme.spacing.xs, alignItems: isUser ? 'flex-end' : 'flex-start' }}>
+    <Animated.View
+      entering={FadeInDown.duration(260).springify().damping(18)}
+      style={{ marginVertical: theme.spacing.xs, alignItems: isUser ? 'flex-end' : 'flex-start' }}
+    >
       <View
         style={{
           maxWidth: '85%',
@@ -80,6 +84,7 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
           paddingVertical: theme.spacing.sm,
           borderRadius: theme.radius.lg,
           backgroundColor: isUser ? theme.colors.bubbleUser : theme.colors.bubbleAssistant,
+          ...(isUser ? theme.shadows.sm : null),
         }}
       >
         {images.length > 0 ? (
@@ -158,6 +163,6 @@ export function MessageBubble({ message, onEdit, onRegenerate, onDelete }: Messa
           </IconButton>
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }

@@ -1,11 +1,13 @@
-import { ArrowUp, Mic, Plus, Square, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowUp, Mic, Phone, Plus, Square, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
-import { IconButton, Text } from '@/components/atoms';
+import { AnimatedPressable, IconButton, Text } from '@/components/atoms';
 import { AttachmentThumbnail } from '@/components/molecules';
 import { AttachmentMenu } from './AttachmentMenu';
+import { LiveVoiceModal } from './LiveVoiceModal';
 import { useAttachments } from '@/features/attachments/hooks/useAttachments';
 import { useVoiceRecorder } from '@/features/voice/hooks/useVoiceRecorder';
 
@@ -26,6 +28,7 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
   const theme = useAppTheme();
   const [value, setValue] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [liveVoiceVisible, setLiveVoiceVisible] = useState(false);
   const { pending, pickFromLibrary, pickDocuments, openCamera, removeAttachment } = useAttachments();
   const { isRecording, isTranscribing, error: voiceError, elapsedSeconds, startRecording, cancelRecording, stopAndTranscribe, clearError } =
     useVoiceRecorder();
@@ -70,12 +73,15 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors.surfaceElevated,
           borderRadius: theme.radius.xl,
           paddingLeft: theme.spacing.xs,
           paddingRight: theme.spacing.xs,
           paddingVertical: theme.spacing.xs,
           minHeight: 52,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          ...theme.shadows.sm,
         }}
       >
         {isRecording || isTranscribing ? (
@@ -96,23 +102,25 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
                 </>
               )}
             </View>
-            <Pressable
+            <AnimatedPressable
               accessibilityRole="button"
               accessibilityLabel="Stop recording"
               onPress={handleStopRecording}
               disabled={isTranscribing}
+              pressScale={0.9}
               style={({ pressed }) => ({
                 width: 36,
                 height: 36,
                 borderRadius: theme.radius.full,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme.colors.primary,
+                overflow: 'hidden',
                 opacity: isTranscribing ? 0.5 : pressed ? 0.85 : 1,
               })}
             >
+              <LinearGradient colors={theme.colors.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
               <View style={{ width: 14, height: 14, borderRadius: theme.radius.sm / 2, backgroundColor: theme.colors.onPrimary }} />
-            </Pressable>
+            </AnimatedPressable>
           </>
         ) : (
           <>
@@ -139,16 +147,22 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
             />
 
             {!isStreaming && !canSend ? (
-              <IconButton accessibilityLabel="Record voice message" onPress={startRecording} disabled={disabled}>
-                <Mic size={20} color={theme.colors.text} />
-              </IconButton>
+              <>
+                <IconButton accessibilityLabel="Start live voice conversation" onPress={() => setLiveVoiceVisible(true)} disabled={disabled}>
+                  <Phone size={20} color={theme.colors.text} />
+                </IconButton>
+                <IconButton accessibilityLabel="Record voice message" onPress={startRecording} disabled={disabled}>
+                  <Mic size={20} color={theme.colors.text} />
+                </IconButton>
+              </>
             ) : null}
 
-            <Pressable
+            <AnimatedPressable
               accessibilityRole="button"
               accessibilityLabel={isStreaming ? 'Stop generating' : 'Send message'}
               disabled={isStreaming ? false : !canSend}
               onPress={isStreaming ? onStop : handleSend}
+              pressScale={0.88}
               style={({ pressed }) => ({
                 width: 36,
                 height: 36,
@@ -156,16 +170,20 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginLeft: theme.spacing.xs,
-                backgroundColor: isStreaming || canSend ? theme.colors.primary : theme.colors.border,
+                backgroundColor: isStreaming || canSend ? undefined : theme.colors.border,
+                overflow: 'hidden',
                 opacity: pressed ? 0.85 : 1,
               })}
             >
+              {isStreaming || canSend ? (
+                <LinearGradient colors={theme.colors.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              ) : null}
               {isStreaming ? (
                 <Square size={14} color={theme.colors.onPrimary} fill={theme.colors.onPrimary} />
               ) : (
                 <ArrowUp size={18} color={canSend ? theme.colors.onPrimary : theme.colors.textTertiary} />
               )}
-            </Pressable>
+            </AnimatedPressable>
           </>
         )}
       </View>
@@ -177,6 +195,8 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
         onPhotoLibrary={pickFromLibrary}
         onFiles={pickDocuments}
       />
+
+      <LiveVoiceModal visible={liveVoiceVisible} onClose={() => setLiveVoiceVisible(false)} />
     </View>
   );
 }
