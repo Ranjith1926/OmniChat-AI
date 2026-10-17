@@ -5,10 +5,12 @@ import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'reac
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { AnimatedPressable, IconButton, Text } from '@/components/atoms';
-import { AttachmentThumbnail } from '@/components/molecules';
+import { AttachmentThumbnail, ConfirmationDialog } from '@/components/molecules';
 import { AttachmentMenu } from './AttachmentMenu';
 import { LiveVoiceModal } from './LiveVoiceModal';
 import { useAttachments } from '@/features/attachments/hooks/useAttachments';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useRewardedInterstitialAd } from '@/features/ads/hooks/useRewardedInterstitialAd';
 import { useVoiceRecorder } from '@/features/voice/hooks/useVoiceRecorder';
 
 interface ComposerProps {
@@ -29,6 +31,9 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
   const [value, setValue] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
   const [liveVoiceVisible, setLiveVoiceVisible] = useState(false);
+  const [adIntroVisible, setAdIntroVisible] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const rewardedInterstitial = useRewardedInterstitialAd(() => setLiveVoiceVisible(true));
   const { pending, pickFromLibrary, pickDocuments, openCamera, removeAttachment } = useAttachments();
   const { isRecording, isTranscribing, error: voiceError, elapsedSeconds, startRecording, cancelRecording, stopAndTranscribe, clearError } =
     useVoiceRecorder();
@@ -41,6 +46,14 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
     if (!canSend) return;
     onSend(value);
     setValue('');
+  };
+
+  const handleStartLiveVoice = () => {
+    if (isAuthenticated || !rewardedInterstitial.loaded) {
+      setLiveVoiceVisible(true);
+      return;
+    }
+    setAdIntroVisible(true);
   };
 
   const handleStopRecording = async () => {
@@ -148,7 +161,7 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
 
             {!isStreaming && !canSend ? (
               <>
-                <IconButton accessibilityLabel="Start live voice conversation" onPress={() => setLiveVoiceVisible(true)} disabled={disabled}>
+                <IconButton accessibilityLabel="Start live voice conversation" onPress={handleStartLiveVoice} disabled={disabled}>
                   <Phone size={20} color={theme.colors.text} />
                 </IconButton>
                 <IconButton accessibilityLabel="Record voice message" onPress={startRecording} disabled={disabled}>
@@ -197,6 +210,18 @@ export function Composer({ onSend, onStop, isStreaming, disabled }: ComposerProp
       />
 
       <LiveVoiceModal visible={liveVoiceVisible} onClose={() => setLiveVoiceVisible(false)} />
+
+      <ConfirmationDialog
+        visible={adIntroVisible}
+        title="Watch an ad for a free call?"
+        message="Sign in for unlimited voice calls, or watch a short ad to start this one free."
+        confirmLabel="Watch ad"
+        onCancel={() => setAdIntroVisible(false)}
+        onConfirm={() => {
+          setAdIntroVisible(false);
+          rewardedInterstitial.show();
+        }}
+      />
     </View>
   );
 }
