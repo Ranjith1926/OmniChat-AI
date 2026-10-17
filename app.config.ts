@@ -87,6 +87,18 @@ const config: ExpoConfig = {
         androidAppId: 'ca-app-pub-8517213704157695~1334775653',
       },
     ],
+    [
+      'expo-build-properties',
+      {
+        // R8 strips the no-arg constructor Room/WorkManager need reflectively, which
+        // react-native-google-mobile-ads' WorkManager init relies on — minified release
+        // builds crashed on launch with "Failed to create an instance of
+        // androidx.work.impl.WorkDatabase" until this was turned off.
+        android: {
+          enableMinifyInReleaseBuilds: false,
+        },
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
