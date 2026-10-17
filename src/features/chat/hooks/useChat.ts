@@ -1,11 +1,12 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { attachmentsActions, chatActions, conversationsActions, useAppDispatch, useAppState } from '@/context';
 import { streamChatResponse } from '@/services/api/gemini';
 import { insertAttachments } from '@/services/db/attachments';
 import { deriveTitle, insertConversation, touchConversation } from '@/services/db/conversations';
 import { deleteMessage as deleteMessageDb, deleteMessagesAfter, insertMessage, listMessages, updateMessage as updateMessageDb } from '@/services/db/messages';
+import { GUEST_MESSAGE_LIMIT, getGuestMessageCount, incrementGuestMessageCount } from '@/services/storage/guestUsageStorage';
 import type { Conversation, Message } from '@/types';
 import { generateId } from '@/utils/id';
 
@@ -26,6 +27,13 @@ export function useChat(conversationId: string) {
   const messages = chatState.messagesByConversation[conversationId] ?? EMPTY_MESSAGES;
   const isStreaming = chatState.streamingMessageId != null;
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isAuthenticated = appState.auth.user != null;
+  const [guestMessageCount, setGuestMessageCount] = useState(0);
+
+  useEffect(() => {
+    if (isAuthenticated) return;
+    getGuestMessageCount().then(setGuestMessageCount);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     dispatch(chatActions.setActiveConversation(conversationId));
@@ -125,6 +133,7 @@ export function useChat(conversationId: string) {
       const trimmed = content.trim();
       const readyAttachments = attachments.pending.filter((attachment) => attachment.status === 'ready');
       if ((!trimmed && readyAttachments.length === 0) || isStreaming) return;
+      if (!isAuthenticated && guestMessageCount >= GUEST_MESSAGE_LIMIT) return;
 
       if (messages.length === 0) {
         await ensureConversationExists(trimmed || readyAttachments[0]?.name || '');
@@ -140,9 +149,12 @@ export function useChat(conversationId: string) {
       if (readyAttachments.length > 0) {
         await insertAttachments(db, userMessage.id, readyAttachments);
       }
+      if (!isAuthenticated) {
+        setGuestMessageCount(await incrementGuestMessageCount());
+      }
       runAssistantTurn([...messages, userMessage]);
     },
-    [attachments.pending, conversationId, db, dispatch, ensureConversationExists, isStreaming, messages, runAssistantTurn]
+    [attachments.pending, conversationId, db, dispatch, ensureConversationExists, guestMessageCount, isAuthenticated, isStreaming, messages, runAssistantTurn]
   );
 
   const stopGeneration = useCallback(() => {
@@ -215,5 +227,8 @@ export function useChat(conversationId: string) {
     editMessage,
     deleteMessage,
     retryLastError,
+    isAuthenticated,
+    guestMessagesRemaining: Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount),
+    guestLimitReached: !isAuthenticated && guestMessageCount >= GUEST_MESSAGE_LIMIT,
   };
 }

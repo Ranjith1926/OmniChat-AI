@@ -6,7 +6,7 @@ import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { IconButton } from '@/components/atoms';
-import { EmptyState, ErrorState } from '@/components/molecules';
+import { EmptyState, ErrorState, GuestLimitBanner } from '@/components/molecules';
 import { Composer, MessageBubble } from '@/components/organisms';
 import { Screen } from '@/components/templates/Screen';
 import { useChat } from '@/features/chat/hooks/useChat';
@@ -18,8 +18,18 @@ export function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const conversationId = id ?? 'new';
   const navigation = useNavigation<DrawerNavigationProp<Record<string, object | undefined>>>();
-  const { messages, isStreaming, error, sendMessage, stopGeneration, regenerateMessage, editMessage, deleteMessage, retryLastError } =
-    useChat(conversationId);
+  const {
+    messages,
+    isStreaming,
+    error,
+    sendMessage,
+    stopGeneration,
+    regenerateMessage,
+    editMessage,
+    deleteMessage,
+    retryLastError,
+    guestLimitReached,
+  } = useChat(conversationId);
   const listRef = useRef<FlatList<Message>>(null);
 
   return (
@@ -64,7 +74,9 @@ export function ChatScreen() {
 
         {error ? <ErrorState message={error} onRetry={retryLastError} /> : null}
 
-        <Composer onSend={sendMessage} onStop={stopGeneration} isStreaming={isStreaming} />
+        {guestLimitReached ? <GuestLimitBanner onSignIn={() => router.push('/signin')} /> : null}
+
+        <Composer onSend={sendMessage} onStop={stopGeneration} isStreaming={isStreaming} disabled={guestLimitReached} />
       </KeyboardAvoidingView>
     </Screen>
   );
