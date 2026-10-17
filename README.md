@@ -24,10 +24,14 @@ A ChatGPT-style mobile chat app built with Expo + TypeScript. It talks directly 
 npm install
 ```
 
-Add your Gemini API key one of two ways:
+The app uses a single shared Gemini API key — there's no per-user key entry in Settings:
 
-1. **In-app (recommended for real devices):** launch the app, open the drawer → Settings, and paste your key. It's stored in `expo-secure-store`, scoped to this device only.
-2. **Local dev convenience:** copy `.env.example` to `.env` and set `GEMINI_API_KEY=...`. This is only read when running in development (`__DEV__`) and is never bundled into a release build — see the security note below for why this isn't a substitute for a real secrets story in production.
+1. **Local/dev builds:** copy `.env.example` to `.env` and set `GEMINI_API_KEY=...`. Read via `app.config.ts`'s `extra.geminiApiKey` at build time.
+2. **EAS cloud builds:** the local `.env` file isn't uploaded to EAS, so register the key as an EAS environment variable instead, e.g.:
+   ```bash
+   npx eas-cli@latest env:create --variable-name GEMINI_API_KEY --value <your-key> --visibility sensitive --environment preview
+   ```
+   See the security note below for why baking one key into a shared binary is a tradeoff, not a solved problem.
 
 ## Running the app
 
@@ -59,14 +63,14 @@ iOS builds/submission follow the same pattern with `--platform ios`, but require
 
 ## ⚠️ API key security — read before shipping to other people
 
-This app calls the Gemini API **directly from the client**, by design (no backend). That means:
+This app calls the Gemini API **directly from the client**, by design (no backend), using **one key shared by every install** (`GEMINI_API_KEY`, read via `app.config.ts`'s `extra.geminiApiKey` — see `src/services/storage/secureConfig.ts`). That means:
 
-- Whatever key is active on a device is present in that device's memory and SecureStore at runtime. A sufficiently determined user of their *own* device can extract it (e.g. via a rooted device, a MITM proxy, or binary inspection) and use it outside the app.
-- Each user is expected to supply **their own key** via Settings — the app does not ship with a working key embedded in the binary. The optional `.env`/`GEMINI_API_KEY` path is a development convenience only; it is read solely in `__DEV__` builds (see `src/services/storage/secureConfig.ts` and `app.config.ts`) and is never included in a release/production build.
-- If you want to distribute this app to people who shouldn't need to bring their own API key, you need either:
+- The key ends up embedded in every installed copy of the app (readable via binary inspection, a rooted device, or a MITM proxy by anyone who has the app). This is fine for your own personal/internal use, but **do not distribute this app to people you don't trust with your Gemini key** — they're all using your quota and billing.
+- If you want to distribute this app more broadly, you need either:
   - a thin backend/proxy that holds the real key and forwards requests (with your own auth/rate-limiting), or
-  - a provider-side key-vaulting / ephemeral-token scheme, if Gemini offers one for your use case.
-- Don't commit a working key anywhere in this repo. `.env` is git-ignored; double-check before every commit if you've been experimenting with the dev-fallback key.
+  - a provider-side key-vaulting / ephemeral-token scheme, if Gemini offers one for your use case, or
+  - bring back a per-user key entry screen (the Settings screen used to have one; removed in favor of simplicity for personal use).
+- Don't commit a working key anywhere in this repo. `.env` is git-ignored; double-check before every commit if you've been experimenting with it. If you register the key as an EAS environment variable, use `--visibility sensitive` so it isn't readable from the EAS dashboard/logs.
 
 ## Project structure
 
@@ -80,7 +84,7 @@ src/
     api/              Gemini request/streaming/transcription/TTS calls
     db/                SQLite schema + queries
     documents/         PDF/TXT/CSV/DOCX text extraction
-    storage/           SecureStore-backed API key storage, permanent file helpers
+    storage/           Shared Gemini API key accessor, permanent file helpers
     permissions/       camera/microphone/media-library permission wrappers
   theme/              light/dark design tokens
 ```
@@ -90,7 +94,7 @@ src/
 A few things in this repo are placeholders generated for development and must be changed before a real store submission:
 
 - **App identifiers** — `android.package` and `ios.bundleIdentifier` in `app.config.ts` are both set to `com.anonymous.omnichatai`, Expo's default for an unconfigured app. Change both to a reverse-domain id you actually own (e.g. `com.yourcompany.omnichatai`) before your first production build — changing it later requires a new app listing on both stores, not just a version bump.
-- **EAS project linking** — running `eas build` for the first time will prompt to create/link an EAS project and will write an `extra.eas.projectId` into your config; this hasn't been done yet.
+- **EAS project linking** — already done: `extra.eas.projectId` in `app.config.ts` points at `@ranjithreo1926/omnichat-ai`. If you fork this for a different account, re-run `eas init` and update that id.
 
 Store-listing checklist (Google Play / Apple App Store both require these):
 
