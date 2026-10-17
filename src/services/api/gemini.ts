@@ -184,7 +184,8 @@ export async function streamChatResponse({
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      // Normalize line endings: the server frames SSE blocks with CRLF, not just LF.
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
 
       let separatorIndex: number;
       while ((separatorIndex = buffer.indexOf('\n\n')) !== -1) {
