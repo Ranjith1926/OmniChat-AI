@@ -6,10 +6,11 @@ import { View } from 'react-native';
 
 import { useAppTheme } from '@/providers/ThemeProvider';
 import { AnimatedPressable, Avatar, IconButton, Text } from '@/components/atoms';
-import { ConfirmationDialog, EmptyState, LoadingState, SearchBar } from '@/components/molecules';
+import { ConfirmationDialog, EmptyState, LoadingState, NativeAdCard, SearchBar } from '@/components/molecules';
 import { ConversationListItem } from './ConversationListItem';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConversations } from '@/features/history/hooks/useConversations';
+import { showInterstitialIfReady } from '@/services/ads/interstitialAd';
 import type { Conversation } from '@/types';
 import { generateId } from '@/utils/id';
 
@@ -32,12 +33,22 @@ export function DrawerContent(props: DrawerContentComponentProps) {
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: theme.spacing.sm, marginBottom: theme.spacing.md }}>
         <Text variant="subtitle">OmniChat AI</Text>
-        <IconButton accessibilityLabel="New chat" onPress={() => go(`/chat/${generateId()}`)}>
+        <IconButton
+          accessibilityLabel="New chat"
+          onPress={() => {
+            showInterstitialIfReady();
+            go(`/chat/${generateId()}`);
+          }}
+        >
           <MessageSquarePlus size={20} color={theme.colors.text} />
         </IconButton>
       </View>
 
       <SearchBar value={searchQuery} onChangeText={setSearchQuery} placeholder="Search conversations" />
+
+      <View style={{ marginTop: theme.spacing.sm }}>
+        <NativeAdCard />
+      </View>
 
       <View style={{ marginTop: theme.spacing.sm, flex: 1 }}>
         {isLoading ? (
