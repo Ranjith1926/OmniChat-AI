@@ -10,6 +10,9 @@ import { BannerAdView, EmptyState, ErrorState, GuestLimitBanner } from '@/compon
 import { Composer, MessageBubble } from '@/components/organisms';
 import { Screen } from '@/components/templates/Screen';
 import { useChat } from '@/features/chat/hooks/useChat';
+import { useRewardedAd } from '@/features/ads/hooks/useRewardedAd';
+import { REWARDED_MESSAGE_BONUS } from '@/services/ads/adsConfig';
+import { showInterstitialIfReady } from '@/services/ads/interstitialAd';
 import type { Message } from '@/types';
 import { generateId } from '@/utils/id';
 
@@ -29,8 +32,10 @@ export function ChatScreen() {
     deleteMessage,
     retryLastError,
     guestLimitReached,
+    claimGuestBonus,
   } = useChat(conversationId);
   const listRef = useRef<FlatList<Message>>(null);
+  const rewardedAd = useRewardedAd(() => claimGuestBonus(REWARDED_MESSAGE_BONUS));
 
   return (
     <Screen padded={false}>
@@ -47,7 +52,13 @@ export function ChatScreen() {
           <IconButton accessibilityLabel="Open menu" onPress={() => navigation.openDrawer()}>
             <Menu size={22} color={theme.colors.text} />
           </IconButton>
-          <IconButton accessibilityLabel="New chat" onPress={() => router.push(`/chat/${generateId()}`)}>
+          <IconButton
+            accessibilityLabel="New chat"
+            onPress={() => {
+              showInterstitialIfReady();
+              router.push(`/chat/${generateId()}`);
+            }}
+          >
             <SquarePen size={20} color={theme.colors.text} />
           </IconButton>
         </View>
@@ -74,7 +85,13 @@ export function ChatScreen() {
 
         {error ? <ErrorState message={error} onRetry={retryLastError} /> : null}
 
-        {guestLimitReached ? <GuestLimitBanner onSignIn={() => router.push('/signin')} /> : null}
+        {guestLimitReached ? (
+          <GuestLimitBanner
+            onSignIn={() => router.push('/signin')}
+            onWatchAd={rewardedAd.loaded ? rewardedAd.show : undefined}
+            watchAdLabel={`+${REWARDED_MESSAGE_BONUS} messages`}
+          />
+        ) : null}
 
         <BannerAdView />
 

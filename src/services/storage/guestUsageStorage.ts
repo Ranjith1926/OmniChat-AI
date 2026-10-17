@@ -16,3 +16,10 @@ export async function incrementGuestMessageCount(): Promise<number> {
   await AsyncStorage.setItem(GUEST_MESSAGE_COUNT_KEY, String(next));
   return next;
 }
+
+/** Rewinds the guest's message count by `amount` (floored at 0) after a rewarded-ad watch. */
+export async function grantGuestMessageBonus(amount: number): Promise<number> {
+  const next = Math.max(0, (await getGuestMessageCount()) - amount);
+  await AsyncStorage.setItem(GUEST_MESSAGE_COUNT_KEY, String(next));
+  return next;
+}

@@ -6,7 +6,7 @@ import { streamChatResponse } from '@/services/api/gemini';
 import { insertAttachments } from '@/services/db/attachments';
 import { deriveTitle, insertConversation, touchConversation } from '@/services/db/conversations';
 import { deleteMessage as deleteMessageDb, deleteMessagesAfter, insertMessage, listMessages, updateMessage as updateMessageDb } from '@/services/db/messages';
-import { GUEST_MESSAGE_LIMIT, getGuestMessageCount, incrementGuestMessageCount } from '@/services/storage/guestUsageStorage';
+import { GUEST_MESSAGE_LIMIT, getGuestMessageCount, grantGuestMessageBonus, incrementGuestMessageCount } from '@/services/storage/guestUsageStorage';
 import type { Conversation, Message } from '@/types';
 import { generateId } from '@/utils/id';
 
@@ -209,6 +209,10 @@ export function useChat(conversationId: string) {
     [conversationId, db, dispatch]
   );
 
+  const claimGuestBonus = useCallback(async (amount: number) => {
+    setGuestMessageCount(await grantGuestMessageBonus(amount));
+  }, []);
+
   const retryLastError = useCallback(() => {
     if (messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -230,5 +234,6 @@ export function useChat(conversationId: string) {
     isAuthenticated,
     guestMessagesRemaining: Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount),
     guestLimitReached: !isAuthenticated && guestMessageCount >= GUEST_MESSAGE_LIMIT,
+    claimGuestBonus,
   };
 }
