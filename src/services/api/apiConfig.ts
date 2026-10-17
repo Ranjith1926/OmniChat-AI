@@ -18,6 +18,17 @@ export const DEFAULT_MODEL = MODEL_PRESETS[0];
  */
 export const DEFAULT_TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
+/**
+ * Gemini's bidirectional Live API model for real-time voice conversation. Not
+ * guaranteed current — verify at https://ai.google.dev/gemini-api/docs/live.
+ * Not user-configurable since the Live API only works with specific
+ * Live-capable models, unlike the regular chat model picker.
+ */
+export const DEFAULT_LIVE_MODEL = 'gemini-3.8-live';
+
+export const GEMINI_LIVE_WS_URL =
+  'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+
 export class ApiKeyMissingError extends Error {
   constructor() {
     super('No Gemini API key is configured. Add one in Settings.');

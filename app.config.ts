@@ -1,12 +1,14 @@
 import 'dotenv/config';
 import type { ExpoConfig } from 'expo/config';
 
-// Dev-only convenience: lets a developer put GEMINI_API_KEY in a local, gitignored
-// .env file so they don't have to retype it into Settings on every reinstall during
-// development. This value is only ever read by the app when `__DEV__` is true (see
-// src/services/storage/secureConfig.ts) — it is NOT a safe way to ship a key in a
-// distributed build, since anything in `extra` is readable from the installed app.
-const devApiKey = process.env.GEMINI_API_KEY ?? null;
+// The single Gemini API key the whole app shares — there's no per-user key entry
+// in Settings. Set GEMINI_API_KEY in a local, gitignored .env file for local/dev
+// builds; for EAS cloud builds, register it as an EAS environment variable (e.g.
+// `eas env:create --variable-name GEMINI_API_KEY ...`) so `process.env.GEMINI_API_KEY`
+// is populated during the build. Anything under `extra` ends up readable inside the
+// installed app binary, so this is fine for personal/internal use but not for
+// distributing to people you don't trust with your key — see src/services/storage/secureConfig.ts.
+const geminiApiKey = process.env.GEMINI_API_KEY ?? null;
 
 const config: ExpoConfig = {
   name: 'omnichat-ai',
@@ -63,7 +65,6 @@ const config: ExpoConfig = {
       {
         cameraPermission: 'Allow OmniChat AI to use your camera to capture photos for your conversations.',
         microphonePermission: false,
-        recordAudioAndroid: false,
       },
     ],
     [
@@ -71,17 +72,25 @@ const config: ExpoConfig = {
       {
         photosPermission: 'Allow OmniChat AI to access your photos so you can share images in conversations.',
         cameraPermission: false,
-        microphonePermission: false,
+        // Must NOT be `false` — expo-image-picker's plugin treats `microphonePermission: false`
+        // as "actively block RECORD_AUDIO app-wide" (via withBlockedPermissions), which overrides
+        // expo-audio/react-native-audio-api adding it elsewhere. This picker never touches the
+        // mic itself; omitting the key just lets it add the (harmless, already-needed) permission
+        // like everything else does, instead of stripping it from the whole app.
       },
     ],
     'expo-document-picker',
+    'react-native-audio-api',
   ],
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
   },
   extra: {
-    devApiKey,
+    geminiApiKey,
+    eas: {
+      projectId: '7d83eaaf-0f87-4ee6-893b-0064d6d3f401',
+    },
   },
 };
 
