@@ -5,6 +5,7 @@ export * from './ConfirmationDialog';
 export * from './EmptyState';
 export * from './ErrorState';
 export * from './GuestLimitBanner';
+export * from './NativeAdCard';
 export * from './LoadingState';
 export * from './MarkdownRenderer';
 export * from './SearchBar';
