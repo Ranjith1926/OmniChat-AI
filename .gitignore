@@ -45,3 +45,6 @@ example
 
 # release builds (too large for git, download from EAS instead)
 /apk
+
+# local Claude Code settings
+.claude/
