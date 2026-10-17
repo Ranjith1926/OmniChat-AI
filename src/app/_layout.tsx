@@ -6,13 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import mobileAds from 'react-native-google-mobile-ads';
+import mobileAds, { useAppOpenAdManager } from 'react-native-google-mobile-ads';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootProvider } from '@/context';
 import { useSettings } from '@/features/settings/hooks/useSettings';
 import { AppThemeProvider, useAppTheme } from '@/providers/ThemeProvider';
 import { DrawerContent } from '@/components/organisms';
+import { APP_OPEN_AD_UNIT_ID } from '@/services/ads/adsConfig';
 import { DATABASE_NAME, migrateDatabase } from '@/services/db/schema';
 
 // Keep the native splash screen up until navigation is ready to render, instead of it
@@ -31,6 +32,9 @@ LogBox.ignoreLogs(['[Reanimated] Dependencies should only be used']);
 function Navigation() {
   const theme = useAppTheme();
   useSettings(); // hydrates theme/model from SQLite on boot
+  // Preloads and, per the hook's own lifecycle handling, shows automatically when the app
+  // returns from the background (never on cold start, so it doesn't fight the splash screen).
+  useAppOpenAdManager({ adUnitId: APP_OPEN_AD_UNIT_ID });
 
   useEffect(() => {
     SplashScreen.hideAsync();
